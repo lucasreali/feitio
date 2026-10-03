@@ -30,6 +30,7 @@ feitio-core/
 
 - Node.js 22 ou superior
 - pnpm 12 (a versão exata está no campo `packageManager` do `package.json`)
+- Docker com Docker Compose, para o banco de dados de desenvolvimento
 
 ## Instalação
 
@@ -39,6 +40,45 @@ pnpm install
 
 Um único `pnpm install` na raiz instala as dependências de todos os projetos.
 
+## Banco de dados
+
+A API usa PostgreSQL 18 com Drizzle. Em desenvolvimento, o banco roda no Docker (`apps/api/docker-compose.yml`); a API roda fora dele.
+
+1. Crie o arquivo de variáveis de ambiente da API a partir do exemplo. O `.env` fica fora do Git.
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+2. Suba o banco. O comando espera o Postgres ficar pronto.
+
+```bash
+pnpm db:up
+```
+
+3. Aplique as migrações.
+
+```bash
+pnpm --filter api db:migrate
+```
+
+4. Suba a API e confira a conexão em `http://localhost:3000/health`.
+
+```bash
+pnpm dev:api
+```
+
+Para alterar o banco, edite ou crie o esquema da tabela em `apps/api/src/database/schemas/` (um arquivo por tabela), registre as tabelas novas no objeto `schemas` de `apps/api/src/database/schema.ts`, gere a migração e aplique:
+
+```bash
+pnpm --filter api db:generate --name descricao_da_mudanca
+pnpm --filter api db:migrate
+```
+
+As migrações geradas ficam em `apps/api/drizzle/` e são versionadas. Para derrubar o banco, use `pnpm db:down`; os dados continuam no volume do Docker.
+
+A API não sobe sem `DATABASE_URL`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
+
 ## Comandos
 
 Todos rodam a partir da raiz.
@@ -47,6 +87,8 @@ Todos rodam a partir da raiz.
 |---|---|
 | `pnpm dev` | Sobe API, painel e checkout ao mesmo tempo |
 | `pnpm dev:api` | Sobe só a API |
+| `pnpm db:up` | Sobe o banco de desenvolvimento da API (Docker) |
+| `pnpm db:down` | Derruba o banco de desenvolvimento, mantendo os dados |
 | `pnpm dev:admin` | Sobe só o painel |
 | `pnpm dev:checkout` | Sobe só o checkout |
 | `pnpm build` | Compila todos os projetos, na ordem de dependência |

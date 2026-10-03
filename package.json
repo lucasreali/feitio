@@ -7,7 +7,9 @@
 		"dev:api": "pnpm --filter api start:dev",
 		"format": "biome format --write",
 		"check": "biome check --write",
-		"test": "vitest run"
+		"test": "vitest run",
+		"db:up": "pnpm --filter api db:up",
+		"db:down": "pnpm --filter api db:down"
 	},
 	"keywords": [],
 	"author": "",

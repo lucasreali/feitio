@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { NestFactory } from "@nestjs/core";
 import {
 	FastifyAdapter,
@@ -5,6 +6,10 @@ import {
 } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module.js";
+
+if (existsSync(".env")) {
+	process.loadEnvFile();
+}
 
 async function bootstrap() {
 	const app = await NestFactory.create<NestFastifyApplication>(

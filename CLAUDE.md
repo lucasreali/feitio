@@ -22,6 +22,10 @@ Everything internal to the system is written in English: identifiers (variables,
 - The `@/*` alias maps to `src/*` (tsconfig `paths`, no `baseUrl`, which is deprecated in TS 6). `nest build` rewrites the alias to a relative path; Vitest resolves it via `vite-tsconfig-paths`.
 - Runs on Fastify (`FastifyAdapter`), not Express. `@nestjs/platform-express` is in `node_modules` only as a peer of `@nestjs/core`; do not use Express APIs or types. E2E tests need `app.getHttpAdapter().getInstance().ready()` after `init()`.
 - OpenAPI is generated from code by the `@nestjs/swagger` CLI plugin (`nest-cli.json`): it reads controllers and files ending in `.dto.ts` / `.entity.ts` at `nest build`/`nest start`, so DTO fields need no `@ApiProperty`. JSDoc comments become descriptions. The plugin does not run under Vitest. The running API serves the spec at `/openapi.json` and Swagger UI at `/docs`.
+- Database: PostgreSQL 18 + Drizzle. `src/database/` holds the `DatabaseModule`, the `DATABASE` injection token and the schemas: one file per table in `schemas/` (each exports its table and enums, which is what drizzle-kit reads), and `schema.ts`, which exports only a `schemas` object with every table for the Drizzle client. A new table needs its own file and an entry in `schemas`. Only data access code (repositories) injects `DATABASE`; everything else goes through services. Other modules get the database by importing `DatabaseModule`.
+- `.env` lives in `apps/api` and is loaded with `process.loadEnvFile()` by `main.ts`, `drizzle.config.ts` and the e2e Vitest config. The API fails at startup without `DATABASE_URL`, and the e2e suite needs `.env` too.
+- Migrations: change the files in `src/database/schemas/`, then `pnpm --filter api db:generate --name <change>` and `pnpm --filter api db:migrate`. Never edit generated files in `apps/api/drizzle/`; Biome ignores that folder.
+- The dev database runs from `apps/api/docker-compose.yml` (`pnpm db:up` / `pnpm db:down`); the API itself runs outside Docker.
 - Biome's `useImportType` rule is off for the api: do not turn imports of injected classes into `import type`, it breaks Nest dependency injection.
 
 ## Frontend
