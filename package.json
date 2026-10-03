@@ -1,24 +1,26 @@
 {
-  "name": "feitio-core",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "12.8.1",
-      "onFail": "download"
-    }
-  },
-  "packageManager": "pnpm@12.8.1",
-  "type": "module",
-  "devDependencies": {
-    "@biomejs/biome": "^2.5.15"
-  }
+	"name": "feitio-core",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"dev:api": "pnpm --filter api start:dev",
+		"format": "biome format --write",
+		"check": "biome check --write"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devEngines": {
+		"packageManager": {
+			"name": "pnpm",
+			"version": "12.8.1",
+			"onFail": "download"
+		}
+	},
+	"packageManager": "pnpm@12.8.1",
+	"type": "module",
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15"
+	}
 }
