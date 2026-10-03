@@ -6,3 +6,8 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+saveExact: true
+
+# Minutes (7 days): only resolve versions published at least this long ago.
+minimumReleaseAge: 10080
