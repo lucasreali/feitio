@@ -230,9 +230,6 @@ importers:
       oxlint-tsgolint:
         specifier: ^7.0.2001
         version: 7.0.2003
-      prettier:
-        specifier: ^3.4.2
-        version: 3.9.9
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -4757,7 +4754,8 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
-  prettier@3.9.9: {}
+  prettier@3.9.9:
+    optional: true
 
   process-warning@4.0.1: {}
 
