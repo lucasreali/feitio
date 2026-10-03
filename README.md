@@ -2,7 +2,9 @@
 
 Núcleo da plataforma Feitio: a API, o painel do lojista, o checkout e os pacotes compartilhados que as lojas dos clientes usam.
 
-As lojas dos clientes não ficam aqui. Cada uma tem o próprio repositório, criado a partir do `storefront-starter`, e consome o `@feitio/sdk`.
+As lojas dos clientes não ficam aqui. Cada uma tem o próprio repositório, criado a partir do `storefront-starter`.
+
+As interfaces (painel, checkout e lojas) acessam a API por código gerado: cada uma gera o próprio cliente com o [Kubb](https://kubb.dev), a partir da especificação OpenAPI (Swagger) que a API publica.
 
 ## Estrutura
 
@@ -13,7 +15,6 @@ feitio-core/
 │   ├── admin/                # painel do lojista (Vite + React + TanStack Router + TanStack Query + Tailwind, só no navegador)
 │   └── checkout/             # checkout único de todas as lojas (Vite + React + TanStack Router + TanStack Query + Tailwind, só no navegador)
 ├── packages/
-│   ├── sdk/                  # cliente tipado da API e lógica de carrinho, login e busca
 │   ├── storefront-starter/   # projeto-base das lojas, sem telas (TanStack Start, com renderização no servidor)
 │   └── config/               # tsconfigs compartilhados (base, Node e React com Vite)
 ├── biome.json
@@ -86,7 +87,7 @@ pnpm --filter admin build
 - Pacote interno: use o protocolo `workspace`.
 
 ```bash
-  pnpm --filter admin add "@feitio/sdk@workspace:*"
+  pnpm --filter admin add -D "@feitio/config@workspace:*"
 ```
 
 ## Formatação e lint

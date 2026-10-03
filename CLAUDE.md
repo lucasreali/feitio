@@ -8,7 +8,7 @@ Everything internal to the system is written in English: identifiers (variables,
 
 ## Repository state
 
-`README.md` describes the target state and is the plan to follow: use its structure and conventions when creating apps, packages and modules. Today only `apps/api` and `packages/config` exist. Not yet created: `apps/admin`, `apps/checkout`, `packages/sdk`, `packages/storefront-starter`, the root `dev`, `build` and `fix` scripts, and CI.
+`README.md` describes the target state and is the plan to follow: use its structure and conventions when creating apps, packages and modules. Today only `apps/api` and `packages/config` exist. Not yet created: `apps/admin`, `apps/checkout`, `packages/storefront-starter`, the root `dev`, `build` and `fix` scripts, and CI.
 
 ## Commands
 
@@ -26,6 +26,7 @@ Everything internal to the system is written in English: identifiers (variables,
 ## Frontend
 
 - No Next.js. `apps/admin` and `apps/checkout` are Vite + React + TanStack Router + TanStack Query, browser-only. `packages/storefront-starter` is TanStack Start, because it needs server-side rendering.
+- Each UI generates its own API client with Kubb from the API's OpenAPI spec (`/openapi.json`); there is no shared client package.
 - TypeScript: React projects extend `@feitio/config/tsconfig.react.json`; Node projects extend `@feitio/config/tsconfig.node.json`.
 - Biome's React domain and Tailwind class sorting apply only to those three folders, via an override in `biome.json`. A new UI project must be added to that override's `includes`.
 
