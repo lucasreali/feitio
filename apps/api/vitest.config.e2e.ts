@@ -5,7 +5,8 @@ export default defineConfig({
 	plugins: [tsconfigPaths()],
 	test: {
 		globals: true,
-		root: "./",
+		name: "api-e2e",
+		root: import.meta.dirname,
 		include: ["**/*.e2e-spec.ts"],
 	},
 });

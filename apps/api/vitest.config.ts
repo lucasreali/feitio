@@ -7,7 +7,8 @@ export default defineConfig({
 	plugins: [tsconfigPaths()],
 	test: {
 		globals: true,
-		root: "./",
+		name: "api",
+		root: import.meta.dirname,
 		include: ["**/*.spec.ts"],
 	},
 });
