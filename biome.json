@@ -16,17 +16,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"preset": "recommended",
-			"nursery": {
-				"useSortedClasses": {
-					"level": "warn",
-					"fix": "safe",
-					"options": {
-						"attributes": ["className"],
-						"functions": ["clsx", "cn", "cva"]
-					}
-				}
-			}
+			"preset": "recommended"
 		}
 	},
 	"javascript": {
@@ -57,6 +47,30 @@
 				"rules": {
 					"style": {
 						"useImportType": "off"
+					}
+				}
+			}
+		},
+		{
+			"includes": [
+				"apps/admin/**",
+				"apps/checkout/**",
+				"packages/storefront-starter/**"
+			],
+			"linter": {
+				"domains": {
+					"react": "recommended"
+				},
+				"rules": {
+					"nursery": {
+						"useSortedClasses": {
+							"level": "warn",
+							"fix": "safe",
+							"options": {
+								"attributes": ["className"],
+								"functions": ["clsx", "cn", "cva"]
+							}
+						}
 					}
 				}
 			}
