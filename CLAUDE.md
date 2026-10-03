@@ -8,7 +8,7 @@ Everything internal to the system is written in English: identifiers (variables,
 
 ## Repository state
 
-`README.md` describes the target state and is the plan to follow: use its structure and conventions when creating apps, packages and modules. Today only `apps/api` exists. Not yet created: `apps/admin`, `apps/checkout`, anything under `packages/`, the root `dev`, `build` and `fix` scripts, and CI.
+`README.md` describes the target state and is the plan to follow: use its structure and conventions when creating apps, packages and modules. Today only `apps/api` and `packages/config` exist. Not yet created: `apps/admin`, `apps/checkout`, `packages/sdk`, `packages/storefront-starter`, the root `dev`, `build` and `fix` scripts, and CI.
 
 ## Commands
 
@@ -22,6 +22,12 @@ Everything internal to the system is written in English: identifiers (variables,
 - The `@/*` alias maps to `src/*` (tsconfig `paths`, no `baseUrl`, which is deprecated in TS 6). `nest build` rewrites the alias to a relative path; Vitest resolves it via `vite-tsconfig-paths`.
 - Runs on Fastify (`FastifyAdapter`), not Express. `@nestjs/platform-express` is in `node_modules` only as a peer of `@nestjs/core`; do not use Express APIs or types. E2E tests need `app.getHttpAdapter().getInstance().ready()` after `init()`.
 - Biome's `useImportType` rule is off for the api: do not turn imports of injected classes into `import type`, it breaks Nest dependency injection.
+
+## Frontend
+
+- No Next.js. `apps/admin` and `apps/checkout` are Vite + React + TanStack Router + TanStack Query, browser-only. `packages/storefront-starter` is TanStack Start, because it needs server-side rendering.
+- TypeScript: React projects extend `@feitio/config/tsconfig.react.json`; Node projects extend `@feitio/config/tsconfig.node.json`.
+- Biome's React domain and Tailwind class sorting apply only to those three folders, via an override in `biome.json`. A new UI project must be added to that override's `includes`.
 
 ## Dependencies
 

@@ -10,12 +10,12 @@ As lojas dos clientes não ficam aqui. Cada uma tem o próprio repositório, cri
 feitio-core/
 ├── apps/
 │   ├── api/                  # API multitenant (NestJS + Fastify + Drizzle)
-│   ├── admin/                # painel do lojista (Next.js + Tailwind)
-│   └── checkout/             # checkout único de todas as lojas (Next.js + Tailwind)
+│   ├── admin/                # painel do lojista (Vite + React + TanStack Router + TanStack Query + Tailwind, só no navegador)
+│   └── checkout/             # checkout único de todas as lojas (Vite + React + TanStack Router + TanStack Query + Tailwind, só no navegador)
 ├── packages/
 │   ├── sdk/                  # cliente tipado da API e lógica de carrinho, login e busca
-│   ├── storefront-starter/   # projeto-base das lojas, sem telas
-│   └── config/               # tsconfig compartilhado
+│   ├── storefront-starter/   # projeto-base das lojas, sem telas (TanStack Start, com renderização no servidor)
+│   └── config/               # tsconfigs compartilhados (base, Node e React com Vite)
 ├── biome.json
 ├── vitest.config.ts
 ├── pnpm-workspace.yaml
@@ -95,7 +95,7 @@ O Biome fica instalado na raiz, com uma configuração única em `biome.json`.
 
 - Indentação com tab, largura 4.
 - Aspas duplas.
-- Classes do Tailwind ordenadas automaticamente.
+- Nas interfaces (admin, checkout e storefront-starter): regras de React e classes do Tailwind ordenadas automaticamente.
 - Na API, a regra `useImportType` fica desligada, porque quebra a injeção de dependência do NestJS.
 
 Rode `pnpm fix` antes de abrir um pull request.
