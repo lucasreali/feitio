@@ -30,7 +30,7 @@ feitio-core/
 
 - Node.js 22 ou superior
 - pnpm 12 (a versão exata está no campo `packageManager` do `package.json`)
-- Docker com Docker Compose, para o banco de dados de desenvolvimento
+- Docker com Docker Compose, para o banco e o armazenamento de arquivos de desenvolvimento
 
 ## Instalação
 
@@ -40,9 +40,11 @@ pnpm install
 
 Um único `pnpm install` na raiz instala as dependências de todos os projetos.
 
-## Banco de dados
+## Banco de dados e arquivos
 
-A API usa PostgreSQL 18 com Drizzle. Em desenvolvimento, o banco roda no Docker (`apps/api/docker-compose.yml`); a API roda fora dele.
+A API usa um PostgreSQL comum (com Drizzle) e um armazenamento de arquivos compatível com S3 (com o SDK oficial de S3). Nenhum código depende de fornecedor: trocar de provedor é só trocar variáveis de ambiente.
+
+Em desenvolvimento, os dois rodam no Docker (`apps/api/docker-compose.yml`): PostgreSQL 18 e [RustFS](https://rustfs.com), um servidor compatível com S3. A API roda fora do Docker.
 
 1. Crie o arquivo de variáveis de ambiente da API a partir do exemplo. O `.env` fica fora do Git.
 
@@ -50,10 +52,10 @@ A API usa PostgreSQL 18 com Drizzle. Em desenvolvimento, o banco roda no Docker 
 cp apps/api/.env.example apps/api/.env
 ```
 
-2. Suba o banco. O comando espera o Postgres ficar pronto.
+2. Suba os serviços locais. O comando espera o Postgres ficar pronto e cria os dois buckets de arquivos.
 
 ```bash
-pnpm db:up
+pnpm services:up
 ```
 
 3. Aplique as migrações.
@@ -75,9 +77,46 @@ pnpm --filter api db:generate --name descricao_da_mudanca
 pnpm --filter api db:migrate
 ```
 
-As migrações geradas ficam em `apps/api/drizzle/` e são versionadas. Para derrubar o banco, use `pnpm db:down`; os dados continuam no volume do Docker.
+As migrações geradas ficam em `apps/api/drizzle/` e são versionadas. Para derrubar os serviços, use `pnpm services:down`; os dados continuam nos volumes do Docker.
 
-A API não sobe sem `DATABASE_URL`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
+A API não sobe sem `DATABASE_URL` nem sem as variáveis `STORAGE_*`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
+
+O código usa os arquivos pela interface `FileStorage` (`apps/api/src/storage/`), nunca pela implementação S3. O teste `pnpm --filter api test:e2e` envia, lê e remove arquivos no armazenamento local, então precisa dos serviços no ar.
+
+#### Organização dos arquivos
+
+- **Dois buckets, por tipo de acesso, e não um por cliente.**
+  - Público (`STORAGE_PUBLIC_BUCKET`): fotos de produto, logos e banners. Cada arquivo tem um endereço permanente, montado a partir de `STORAGE_PUBLIC_URL`.
+  - Privado (`STORAGE_PRIVATE_BUCKET`): notas fiscais, relatórios e documentos. Os arquivos só são acessados por links temporários gerados pela API, que valem 15 minutos por padrão.
+- **Caminho por lojista.** Dentro de cada bucket, os arquivos ficam em `tenants/{id-do-tenant}/{categoria}/{id-aleatório}.{extensão}`.
+- **Quem monta o caminho é a API.** Quem envia informa o tenant, a categoria (letras minúsculas, números e hífen) e o nome original, do qual só a extensão é aproveitada.
+- **Remoção por lojista.** O módulo remove todos os arquivos de um tenant nos dois buckets.
+
+### Produção com Supabase
+
+Em produção, o Supabase é usado só como PostgreSQL e como S3. Não há biblioteca do Supabase no projeto: basta preencher as variáveis de ambiente da API.
+
+**Banco.** Use a string de conexão do pooler em modo sessão (Session pooler), que fica no painel do projeto em **Connect**:
+
+```bash
+DATABASE_URL=postgresql://postgres.<project-ref>:<senha>@aws-0-<região>.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=/caminho/prod-ca-2021.crt
+```
+
+O certificado (`prod-ca-2021.crt`) é baixado em **Database Settings → SSL Configuration**. No driver `pg`, `sslmode=require` valida o certificado contra as CAs do sistema, e a CA do Supabase não está entre elas; por isso o `sslrootcert`. A mesma variável serve para o `pnpm --filter api db:migrate`.
+
+**Arquivos.** Em **Storage**, crie dois buckets: um marcado como público e outro privado. Gere as chaves em **Storage → S3 Configuration → Access keys**:
+
+```bash
+STORAGE_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+STORAGE_REGION=<região do projeto, ex.: sa-east-1>
+STORAGE_PUBLIC_BUCKET=<nome do bucket público>
+STORAGE_PRIVATE_BUCKET=<nome do bucket privado>
+STORAGE_ACCESS_KEY_ID=<access key id>
+STORAGE_SECRET_ACCESS_KEY=<secret access key>
+STORAGE_PUBLIC_URL=https://<project-ref>.supabase.co/storage/v1/object/public/<nome do bucket público>
+```
+
+`STORAGE_PUBLIC_URL` é a base dos endereços públicos dos arquivos do bucket público; no Supabase ela é diferente do endpoint S3. Os links temporários do bucket privado são assinados pela própria API com as chaves S3.
 
 ## Comandos
 
@@ -87,8 +126,8 @@ Todos rodam a partir da raiz.
 |---|---|
 | `pnpm dev` | Sobe API, painel e checkout ao mesmo tempo |
 | `pnpm dev:api` | Sobe só a API |
-| `pnpm db:up` | Sobe o banco de desenvolvimento da API (Docker) |
-| `pnpm db:down` | Derruba o banco de desenvolvimento, mantendo os dados |
+| `pnpm services:up` | Sobe o banco e o armazenamento de arquivos de desenvolvimento (Docker) |
+| `pnpm services:down` | Derruba os serviços de desenvolvimento, mantendo os dados |
 | `pnpm dev:admin` | Sobe só o painel |
 | `pnpm dev:checkout` | Sobe só o checkout |
 | `pnpm build` | Compila todos os projetos, na ordem de dependência |
@@ -111,6 +150,8 @@ pnpm --filter admin build
 | Painel | 3001 |
 | Checkout | 3002 |
 | Storefront starter | 3003 |
+| PostgreSQL | 5432 |
+| Armazenamento S3 (RustFS) | 9000 |
 
 ## Dependências
 

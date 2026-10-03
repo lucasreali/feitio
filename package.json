@@ -8,8 +8,8 @@
 		"format": "biome format --write",
 		"check": "biome check --write",
 		"test": "vitest run",
-		"db:up": "pnpm --filter api db:up",
-		"db:down": "pnpm --filter api db:down"
+		"services:up": "pnpm --filter api services:up",
+		"services:down": "pnpm --filter api services:down"
 	},
 	"keywords": [],
 	"author": "",

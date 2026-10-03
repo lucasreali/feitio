@@ -18,12 +18,14 @@
 		"test:cov": "vitest run --coverage",
 		"test:debug": "vitest --inspect-brk --no-file-parallelism",
 		"test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-		"db:up": "docker compose up -d --wait",
-		"db:down": "docker compose down",
+		"services:up": "docker compose up -d --wait && docker compose run --rm storage-init",
+		"services:down": "docker compose down",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "3.1141.0",
+		"@aws-sdk/s3-request-presigner": "3.1141.0",
 		"@fastify/static": "10.1.5",
 		"@nestjs/common": "12.1.0",
 		"@nestjs/core": "12.1.0",

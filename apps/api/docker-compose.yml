@@ -16,5 +16,40 @@ services:
       timeout: 5s
       retries: 15
 
+  storage:
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY_ID:?STORAGE_ACCESS_KEY_ID is not set, copy .env.example to .env}
+      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_ACCESS_KEY:?STORAGE_SECRET_ACCESS_KEY is not set, copy .env.example to .env}
+    ports:
+      - "9000:9000"
+    volumes:
+      - storage-data:/data
+
+  # One-shot job: creates both buckets and makes only the public one readable by anyone.
+  # Started by `pnpm services:up` after the other services are up.
+  storage-init:
+    image: amazon/aws-cli:2.37.4
+    profiles: [setup]
+    depends_on: [storage]
+    environment:
+      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${STORAGE_REGION:?STORAGE_REGION is not set, copy .env.example to .env}
+      AWS_ENDPOINT_URL: http://storage:9000
+      PUBLIC_BUCKET: ${STORAGE_PUBLIC_BUCKET:?STORAGE_PUBLIC_BUCKET is not set, copy .env.example to .env}
+      PRIVATE_BUCKET: ${STORAGE_PRIVATE_BUCKET:?STORAGE_PRIVATE_BUCKET is not set, copy .env.example to .env}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until aws s3api list-buckets > /dev/null 2>&1; do sleep 1; done
+        for bucket in "$$PUBLIC_BUCKET" "$$PRIVATE_BUCKET"; do
+          aws s3api head-bucket --bucket "$$bucket" 2> /dev/null || aws s3api create-bucket --bucket "$$bucket"
+        done
+        aws s3api put-bucket-policy --bucket "$$PUBLIC_BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$PUBLIC_BUCKET/*\"]}]}"
+        echo "Buckets $$PUBLIC_BUCKET (public) and $$PRIVATE_BUCKET (private) are ready"
+
 volumes:
   postgres-data:
+  storage-data:
