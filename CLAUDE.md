@@ -21,6 +21,7 @@ Everything internal to the system is written in English: identifiers (variables,
 - ESM with `module: nodenext`: local imports end in `.js`, including through the alias (`@/foo/bar.js`).
 - The `@/*` alias maps to `src/*` (tsconfig `paths`, no `baseUrl`, which is deprecated in TS 6). `nest build` rewrites the alias to a relative path; Vitest resolves it via `vite-tsconfig-paths`.
 - Runs on Fastify (`FastifyAdapter`), not Express. `@nestjs/platform-express` is in `node_modules` only as a peer of `@nestjs/core`; do not use Express APIs or types. E2E tests need `app.getHttpAdapter().getInstance().ready()` after `init()`.
+- OpenAPI is generated from code by the `@nestjs/swagger` CLI plugin (`nest-cli.json`): it reads controllers and files ending in `.dto.ts` / `.entity.ts` at `nest build`/`nest start`, so DTO fields need no `@ApiProperty`. JSDoc comments become descriptions. The plugin does not run under Vitest. The running API serves the spec at `/openapi.json` and Swagger UI at `/docs`.
 - Biome's `useImportType` rule is off for the api: do not turn imports of injected classes into `import type`, it breaks Nest dependency injection.
 
 ## Frontend

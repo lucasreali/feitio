@@ -6,6 +6,8 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+  # Download telemetry from swagger-ui-dist; not needed to serve the docs.
+  "@scarf/scarf": false
 
 saveExact: true
 
