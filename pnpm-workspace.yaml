@@ -8,6 +8,7 @@ allowBuilds:
   unrs-resolver: true
   # Download telemetry from swagger-ui-dist; not needed to serve the docs.
   "@scarf/scarf": false
+  msgpackr-extract: false
 
 saveExact: true
 
