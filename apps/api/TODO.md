@@ -55,7 +55,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 - [x] Limite de tentativas de login
 - [x] Guards de sessão e de papel
 - [x] Edição das configurações da loja pelo dono
-- [ ] Comando para criar loja com o primeiro usuário dono
+- [x] Comando para criar loja com o primeiro usuário dono
 - [ ] Depois do módulo de notificações: convite por e-mail e recuperação de senha
 
 ## Fase 2: Catálogo

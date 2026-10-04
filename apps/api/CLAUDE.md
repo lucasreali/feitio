@@ -70,6 +70,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Sign-in limits (`LoginAttempts`, Valkey, 15-minute windows): 5 attempts per e-mail and address, 100 per e-mail and 30 per address (IPv6 counted by /64, `ipBucket`); past any of them sign-in is refused (429 with `Retry-After`), even with the right password. Attempts are counted atomically before the password check, so parallel requests cannot slip past; a success takes its attempt back and resets the e-mail/address pair. The address is `request.ip`: behind a proxy, turn on Fastify's `trustProxy` first.
 - Panel routes live under `/admin/...`; store routes keep the tenant from `X-Tenant`. Request bodies are validated by plain functions that return domain types or throw 400 (`parseStoreSettingsChanges`); DTO classes only describe the body for Swagger.
 - `PATCH /admin/store/settings` (owners) changes the store name, logo (`HttpsUrl`) and theme (`ThemeValue`: plain CSS colors and lengths, no `;`, braces, quotes or `url()`).
+- `pnpm store:create --slug <slug> --name <name> --owner-email <e-mail> [--owner-name <name> --owner-cpf <cpf>]` creates an active store with its settings and an owner: a new user gets a random password printed once; an existing user (by e-mail) keeps theirs. Commands that need the API's domain types live in `src/cli/` and run from `dist/` after `nest build`; `scripts/` stays for files Node runs straight from `.ts`.
 - `MembershipsRepository` reads a user's memberships with `app.user_id` set, before a tenant is chosen.
 
 ## SOLID
