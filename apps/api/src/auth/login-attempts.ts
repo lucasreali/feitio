@@ -1,62 +1,78 @@
 import { createHash } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { Valkey } from "../valkey/valkey.js";
+import { ipBucket } from "./ip-bucket.js";
 
-/** Failures are counted over this window, from the first one. */
+/** Attempts are counted over this window, from the first one. */
 const WINDOW_SECONDS = 15 * 60;
-/** Stops guessing one user's password, from any number of addresses. */
-const MAX_FAILURES_PER_EMAIL = 5;
-/** Stops one address from trying passwords across many e-mails. */
-const MAX_FAILURES_PER_IP = 30;
+/**
+ * Per counter, the attempts allowed in a window:
+ * - `pair`: one e-mail from one address. Stops guessing a password without
+ *   letting a stranger lock its owner out everywhere.
+ * - `email`: one e-mail from anywhere. Caps guessing spread over many
+ *   addresses; reaching it does lock the e-mail out for the window.
+ * - `ip`: one address (an IPv6 /64) across e-mails.
+ */
+const LIMITS = { pair: 5, email: 100, ip: 30 } as const;
+type Counter = keyof typeof LIMITS;
+const COUNTERS = Object.keys(LIMITS) as Counter[];
 
 /**
- * Counts failed sign-ins in Valkey, per e-mail and per IP address. Once
- * either reaches its limit, sign-in is refused until the window ends, even
- * with the right password.
+ * Counts sign-in attempts in Valkey. Every attempt is counted before the
+ * password is checked, in one atomic step, so parallel requests cannot all
+ * pass the check; a successful sign-in takes its own attempt back.
  */
 @Injectable()
 export class LoginAttempts {
 	constructor(private readonly valkey: Valkey) {}
 
-	/** Seconds until this e-mail and address may try again; 0 when they may now. */
-	async retryAfter(email: string, ip: string): Promise<number> {
+	/**
+	 * Counts an attempt. Returns 0 when it may go ahead, or the seconds until
+	 * the e-mail and address may try again.
+	 */
+	async attempt(email: string, ip: string): Promise<number> {
 		const keys = loginKeys(email, ip);
-		const results = (await this.valkey
-			.multi()
-			.get(keys.email)
-			.ttl(keys.email)
-			.get(keys.ip)
-			.ttl(keys.ip)
-			.exec()) as [Error | null, string | number | null][];
-		const [failuresByEmail, emailTtl, failuresByIp, ipTtl] = results.map(
-			([, value]) => Number(value ?? 0),
-		);
+		const transaction = this.valkey.multi();
+		for (const counter of COUNTERS) {
+			// NX: the window starts at the first attempt and is not extended.
+			transaction
+				.incr(keys[counter])
+				.expire(keys[counter], WINDOW_SECONDS, "NX")
+				.ttl(keys[counter]);
+		}
+		const results = (await transaction.exec()) as [Error | null, number][];
 		return Math.max(
-			failuresByEmail >= MAX_FAILURES_PER_EMAIL ? emailTtl : 0,
-			failuresByIp >= MAX_FAILURES_PER_IP ? ipTtl : 0,
+			...COUNTERS.map((counter, index) => {
+				const [[, count], , [, ttl]] = results.slice(
+					index * 3,
+					index * 3 + 3,
+				);
+				return count > LIMITS[counter] ? ttl : 0;
+			}),
 		);
 	}
 
-	async recordFailure(email: string, ip: string): Promise<void> {
+	/** A successful sign-in: the pair starts over and the attempt is taken back. */
+	async succeeded(email: string, ip: string): Promise<void> {
 		const keys = loginKeys(email, ip);
-		// NX: the window starts at the first failure and is not extended.
 		await this.valkey
 			.multi()
-			.incr(keys.email)
-			.expire(keys.email, WINDOW_SECONDS, "NX")
-			.incr(keys.ip)
-			.expire(keys.ip, WINDOW_SECONDS, "NX")
+			.del(keys.pair)
+			.decr(keys.email)
+			.decr(keys.ip)
 			.exec();
-	}
-
-	/** A successful sign-in clears the e-mail's count, not the address's. */
-	async reset(email: string): Promise<void> {
-		await this.valkey.del(loginKeys(email, "").email);
 	}
 }
 
 // The e-mail is hashed so Valkey does not hold a list of addresses.
-const loginKeys = (email: string, ip: string) => ({
-	email: `login-failures:email:${createHash("sha256").update(email.trim().toLowerCase()).digest("hex")}`,
-	ip: `login-failures:ip:${ip}`,
-});
+const loginKeys = (email: string, ip: string): Record<Counter, string> => {
+	const hash = createHash("sha256")
+		.update(email.trim().toLowerCase())
+		.digest("hex");
+	const bucket = ipBucket(ip);
+	return {
+		pair: `login-attempts:pair:${hash}:${bucket}`,
+		email: `login-attempts:email:${hash}`,
+		ip: `login-attempts:ip:${bucket}`,
+	};
+};

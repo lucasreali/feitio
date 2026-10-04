@@ -94,12 +94,10 @@ describe("PATCH /admin/store/settings (e2e)", () => {
 		for (const tenant of [store, otherStore]) {
 			await TenantContext.run(tenant, () =>
 				tenantDb.run((tx) =>
-					tx
-						.insert(storeSettings)
-						.values({
-							tenantId: tenant.id,
-							displayName: tenant.name,
-						}),
+					tx.insert(storeSettings).values({
+						tenantId: tenant.id,
+						displayName: tenant.name,
+					}),
 				),
 			);
 		}

@@ -178,28 +178,58 @@ describe("Admin panel sign-in (e2e)", () => {
 			login({ email: user.email, password: "wrong password" }, from);
 		const right = (user: TestUser, from: string) =>
 			login({ email: user.email, password: user.password }, from);
+		const newMember = async () => {
+			const user = await fixtures.user();
+			await fixtures.member(first, user, "staff");
+			return user;
+		};
+		const randomIpv6Network = () =>
+			`2001:db8:${[1, 2].map(() => Math.floor(Math.random() * 0xffff).toString(16)).join(":")}`;
 
-		it("blocks an e-mail for a while after 5 failures, even with the right password", async () => {
-			const target = await fixtures.user();
-			await fixtures.member(first, target, "staff");
+		it("blocks an e-mail from one address after 5 failures, even with the right password", async () => {
+			const target = await newMember();
 			const from = randomIp();
 			for (let attempt = 0; attempt < 5; attempt++) {
 				expect((await wrong(target, from)).statusCode).toBe(401);
 			}
 
-			// From any address: the limit follows the e-mail.
-			const blocked = await right(target, randomIp());
+			const blocked = await right(target, from);
 			expect(blocked.statusCode).toBe(429);
 			const retryAfter = Number(blocked.headers["retry-after"]);
 			expect(retryAfter).toBeGreaterThan(0);
 			expect(retryAfter).toBeLessThanOrEqual(15 * 60);
-			// Other users from the same address are not affected.
+			// The owner of the e-mail, elsewhere, is not locked out by it.
+			expect((await right(target, randomIp())).statusCode).toBe(200);
+			// Nor are other users at that address.
 			expect((await right(ana, from)).statusCode).toBe(200);
 		});
 
-		it("starts the e-mail count over after a successful sign-in", async () => {
-			const target = await fixtures.user();
-			await fixtures.member(first, target, "staff");
+		it("counts attempts before checking the password, so parallel guesses cannot slip past the limit", async () => {
+			const target = await newMember();
+			const from = randomIp();
+
+			const answers = await Promise.all(
+				Array.from({ length: 15 }, () => wrong(target, from)),
+			);
+
+			const codes = answers.map((response) => response.statusCode);
+			expect(codes.filter((code) => code === 401)).toHaveLength(5);
+			expect(codes.filter((code) => code === 429)).toHaveLength(10);
+		});
+
+		it("blocks an e-mail everywhere after 100 failures from many addresses", async () => {
+			const target = await newMember();
+			for (let batch = 0; batch < 10; batch++) {
+				await Promise.all(
+					Array.from({ length: 10 }, () => wrong(target, randomIp())),
+				);
+			}
+
+			expect((await right(target, randomIp())).statusCode).toBe(429);
+		});
+
+		it("starts the count over after a successful sign-in", async () => {
+			const target = await newMember();
 			const from = randomIp();
 			for (const round of [1, 2]) {
 				for (let attempt = 0; attempt < 4; attempt++) {
@@ -224,6 +254,23 @@ describe("Admin panel sign-in (e2e)", () => {
 
 			expect((await right(ana, from)).statusCode).toBe(429);
 			expect((await right(ana, randomIp())).statusCode).toBe(200);
+		});
+
+		it("counts IPv6 addresses by their /64 network", async () => {
+			const network = randomIpv6Network();
+			for (let attempt = 0; attempt < 30; attempt++) {
+				await login(
+					{ email: `nobody-${attempt}@feitio.test`, password: "x" },
+					`${network}:${attempt.toString(16)}::1`,
+				);
+			}
+
+			expect((await right(ana, `${network}:ffff::2`)).statusCode).toBe(
+				429,
+			);
+			expect(
+				(await right(ana, `${randomIpv6Network()}::1`)).statusCode,
+			).toBe(200);
 		});
 	});
 

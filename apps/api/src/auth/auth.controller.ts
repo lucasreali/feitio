@@ -44,8 +44,8 @@ export class AuthController {
 	/**
 	 * Signs in to the admin panel and starts a session (cookie) in the user's
 	 * first active store. Wrong credentials and users without an active store
-	 * get the same 401. After 5 failures for an e-mail, or 30 from an address,
-	 * sign-in is refused for up to 15 minutes (429 with Retry-After).
+	 * get the same 401. Attempts are limited per e-mail and address (5), per
+	 * e-mail (100) and per address (30) over 15 minutes (429 with Retry-After).
 	 */
 	@Post("login")
 	@HttpCode(200)
@@ -65,7 +65,7 @@ export class AuthController {
 		}
 		// ponytail: request.ip is the direct peer. Behind a proxy, enable
 		// Fastify's trustProxy, or every client shares the proxy's address limit.
-		const retryAfter = await this.attempts.retryAfter(email, request.ip);
+		const retryAfter = await this.attempts.attempt(email, request.ip);
 		if (retryAfter > 0) {
 			reply.header("retry-after", String(retryAfter));
 			throw new HttpException(
@@ -75,10 +75,9 @@ export class AuthController {
 		}
 		const found = await this.auth.authenticate(email, password);
 		if (!found) {
-			await this.attempts.recordFailure(email, request.ip);
 			throw new UnauthorizedException();
 		}
-		await this.attempts.reset(email);
+		await this.attempts.succeeded(email, request.ip);
 		const [active] = found.memberships;
 		// A session already on this browser ends; the new one has a new token.
 		await this.sessions.destroy(request, reply);
