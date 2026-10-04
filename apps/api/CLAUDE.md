@@ -64,6 +64,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Writes to a product's structure lock the product row first (`lockProduct`), so checks such as "not the last variant" hold under concurrent requests.
 - Order that people see (images, option groups, options, variants, facet values, collections) is a `position` column, never the id: UUID v7 ids made in the same millisecond have no order among themselves.
 - Facets (`src/facets/`) are store-wide attributes with values, attached to products. A facet value a rule collection uses cannot be removed (409), nor can an asset a product or variant uses.
+- Collections (`src/collections/`) are `manual` (products picked in order, `PUT /admin/collections/:id/products`) or `rule` (products with all the rule's facet values, worked out when read, never stored); the kind never changes. They nest through `parent_id`: a move goes after the new siblings and is refused (400) under itself or a descendant, and a collection with children cannot be removed (409). `PUT /admin/collections/order` takes every child of one parent in the new order. Tree changes hold a per-tenant transaction advisory lock.
 - Panel sub-resource routes (options, variants) answer with the whole `ProductDto`. Database constraint violations become HTTP errors through `translateConstraints` (`src/database/pg-error.ts`), keyed by constraint name or SQLSTATE.
 
 ## Valkey and sessions

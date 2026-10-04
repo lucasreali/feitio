@@ -1,11 +1,18 @@
 import {
+	DESCRIPTION_MAX,
+	newSlug,
+	SEO_DESCRIPTION_MAX,
+	SEO_TITLE_MAX,
+	slugField,
+} from "../catalog/fields.js";
+import {
 	type ProductStatus,
 	productStatus,
 } from "../database/schemas/products.js";
 import { AssetId, FacetValueId, ProductOptionId } from "../domain/ids.js";
 import { Money } from "../domain/money.js";
 import { Sku } from "../domain/sku.js";
-import { Slug, slugify } from "../domain/slug.js";
+import type { Slug } from "../domain/slug.js";
 import {
 	idList,
 	invalid,
@@ -17,9 +24,6 @@ import {
 } from "../http/request-body.js";
 
 const NAME_MAX = 200;
-const DESCRIPTION_MAX = 10_000;
-const SEO_TITLE_MAX = 120;
-const SEO_DESCRIPTION_MAX = 320;
 /** Longest name of an option group or option. */
 export const OPTION_NAME_MAX = 80;
 /** The price column is a 32-bit integer of cents. */
@@ -81,12 +85,6 @@ const price = (value: unknown): Money => {
 		: invalid("price must be a whole number of cents, from 0");
 };
 
-const slug = (value: unknown) =>
-	(typeof value === "string" && Slug.tryParse(value)) ||
-	invalid(
-		"slug must be lowercase letters, digits and single dashes, up to 120 characters",
-	);
-
 const imageId = (value: unknown) =>
 	value === null
 		? null
@@ -108,16 +106,9 @@ export function parseNewProduct(body: unknown): NewProduct {
 	}
 	const variant = objectBody(fields.variant, ["sku", "price"]);
 	const name = requiredText(fields.name, "name", NAME_MAX);
-	const slugFromName = fields.slug === undefined;
 	return {
 		name,
-		slug: slugFromName
-			? (slugify(name) ??
-				invalid(
-					"name has no letters or digits for a slug; send a slug",
-				))
-			: slug(fields.slug),
-		slugFromName,
+		...newSlug(name, fields.slug),
 		description:
 			optionalText(
 				fields.description ?? null,
@@ -155,7 +146,7 @@ export function parseProductChanges(body: unknown): ProductChanges {
 		changes.name = requiredText(fields.name, "name", NAME_MAX);
 	}
 	if ("slug" in fields) {
-		changes.slug = slug(fields.slug);
+		changes.slug = slugField(fields.slug);
 	}
 	if ("description" in fields) {
 		changes.description =

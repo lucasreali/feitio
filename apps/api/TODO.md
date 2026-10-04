@@ -68,10 +68,10 @@ Equivale a Product, ProductVariant, ProductOption, Facet, Collection e Asset.
 - [x] Variantes: SKU, preço, combinação de opções e imagem própria
 - [x] Regra: todo produto tem ao menos uma variante, e o preço fica na variante
 - [x] Atributos para filtro (facets), como marca, material e gênero
-- [ ] Coleções: agrupamento manual e por regra (por atributo), com ordem e hierarquia
+- [x] Coleções: agrupamento manual e por regra (por atributo), com ordem e hierarquia
 - [ ] Rotas de loja: listar com paginação, filtrar por coleção e atributo, ordenar, buscar por slug
-- [ ] Rotas de painel: criar, editar, arquivar e reordenar
-- [ ] Campos de SEO por produto e por coleção (título e descrição)
+- [x] Rotas de painel: criar, editar, arquivar e reordenar
+- [x] Campos de SEO por produto e por coleção (título e descrição)
 
 ## Fase 3: Estoque
 

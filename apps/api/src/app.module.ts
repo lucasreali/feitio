@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AssetsModule } from "./assets/assets.module.js";
 import { AuthModule } from "./auth/auth.module.js";
+import { CollectionsModule } from "./collections/collections.module.js";
 import { FacetsModule } from "./facets/facets.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { ProductsModule } from "./products/products.module.js";
@@ -12,6 +13,7 @@ import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
 	imports: [
 		AssetsModule,
 		AuthModule,
+		CollectionsModule,
 		FacetsModule,
 		HealthModule,
 		ProductsModule,

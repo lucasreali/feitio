@@ -3,7 +3,8 @@ import {
 	ConflictException,
 	Injectable,
 } from "@nestjs/common";
-import { and, asc, eq, like, or, type SQL } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
+import { freeSlug } from "../catalog/free-slug.js";
 import { translateConstraints } from "../database/pg-error.js";
 import { assets } from "../database/schemas/assets.js";
 import { facetValues } from "../database/schemas/facet-values.js";
@@ -16,7 +17,7 @@ import { productVariantOptions } from "../database/schemas/product-variant-optio
 import { productVariants } from "../database/schemas/product-variants.js";
 import { products } from "../database/schemas/products.js";
 import type { ProductId } from "../domain/ids.js";
-import { Slug } from "../domain/slug.js";
+import type { Slug } from "../domain/slug.js";
 import { FileStorage } from "../storage/file-storage.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
@@ -83,7 +84,7 @@ export class ProductsRepository {
 			() =>
 				this.tenantDb.run(async (tx) => {
 					const slug = input.slugFromName
-						? await freeSlug(tx, input.slug)
+						? await freeSlug(tx, products, input.slug)
 						: input.slug;
 					const [product] = await tx
 						.insert(products)
@@ -284,35 +285,5 @@ export class ProductsRepository {
 				facetValues: values,
 			};
 		});
-	}
-}
-
-/**
- * `base`, or `base-2`, `base-3`... whichever the store does not use yet. Two
- * products created at once with the same name may still collide: the unique
- * key then answers 409, and a retry gets the next suffix.
- */
-async function freeSlug(tx: TenantTransaction, base: Slug): Promise<Slug> {
-	const taken = new Set(
-		(
-			await tx
-				.select({ slug: products.slug })
-				.from(products)
-				.where(
-					or(
-						eq(products.slug, base),
-						like(products.slug, `${base}-%`),
-					),
-				)
-		).map((row) => row.slug as string),
-	);
-	for (let suffix = 1; ; suffix++) {
-		const ending = suffix === 1 ? "" : `-${suffix}`;
-		const candidate = Slug.parse(
-			`${base.slice(0, 120 - ending.length).replace(/-+$/, "")}${ending}`,
-		);
-		if (!taken.has(candidate)) {
-			return candidate;
-		}
 	}
 }
