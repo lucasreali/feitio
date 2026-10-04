@@ -26,6 +26,12 @@ describe("GET /store/settings (e2e)", () => {
 	const tenantA = tenant("active", { primary: "#1e3b32", radius: "0.5rem" });
 	const tenantB = tenant("active", { primary: "#7a1f5c", accent: "#f2c14e" });
 	const inactive = tenant("inactive", { primary: "#000000" });
+	const withoutSettings = tenant("active", {});
+	// Stored themes may hold keys the API does not know; they must not leak.
+	const withUnknownKeys = tenant("active", {
+		primary: "#123456",
+		"font-family": "Comic Sans",
+	} as StoreTheme);
 
 	const getSettings = (headers: Record<string, string> = {}) =>
 		app.inject({ method: "GET", url: "/store/settings", headers });
@@ -46,7 +52,16 @@ describe("GET /store/settings (e2e)", () => {
 		});
 		await owner.connect();
 		const tenantDb = moduleRef.get(TenantDatabase);
-		for (const t of [tenantA, tenantB, inactive]) {
+		await owner.query(
+			"insert into tenants (id, name, slug, status) values ($1, $2, $3, $4)",
+			[
+				withoutSettings.id,
+				withoutSettings.displayName,
+				withoutSettings.slug,
+				withoutSettings.status,
+			],
+		);
+		for (const t of [tenantA, tenantB, inactive, withUnknownKeys]) {
 			await owner.query(
 				"insert into tenants (id, name, slug, status) values ($1, $2, $3, $4)",
 				[t.id, t.displayName, t.slug, t.status],
@@ -66,7 +81,13 @@ describe("GET /store/settings (e2e)", () => {
 
 	afterAll(async () => {
 		await owner.query("delete from tenants where id = any($1)", [
-			[tenantA.id, tenantB.id, inactive.id],
+			[
+				tenantA.id,
+				tenantB.id,
+				inactive.id,
+				withoutSettings.id,
+				withUnknownKeys.id,
+			],
 		]);
 		await owner.end();
 		await app.close();
@@ -102,6 +123,26 @@ describe("GET /store/settings (e2e)", () => {
 		expect(unknown.statusCode).toBe(404);
 		expect(inactiveTenant.statusCode).toBe(404);
 		expect(inactiveTenant.json()).toEqual(unknown.json());
+	});
+
+	it("answers 404 for an active tenant without settings", async () => {
+		const response = await getSettings({
+			"x-tenant": withoutSettings.slug,
+		});
+
+		expect(response.statusCode).toBe(404);
+		expect(response.json()).toMatchObject({
+			message: "Store settings not found",
+		});
+	});
+
+	it("returns only the known theme variables", async () => {
+		const response = await getSettings({
+			"x-tenant": withUnknownKeys.slug,
+		});
+
+		expect(response.statusCode).toBe(200);
+		expect(response.json().theme).toEqual({ primary: "#123456" });
 	});
 
 	it("works without cookies or a CSRF token", async () => {
