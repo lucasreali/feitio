@@ -1,5 +1,6 @@
 import pg from "pg";
 import { TenantId, UserId } from "../src/domain/ids.js";
+import { randomCpf } from "./fixtures.js";
 
 // Memberships tie a user to a tenant with a role. The application role sees a
 // membership when it belongs to the current tenant (app.tenant_id) or to the
@@ -59,8 +60,8 @@ describe("memberships table (e2e)", () => {
 		}
 		for (const id of [ana, bia]) {
 			await owner.query(
-				"insert into users (id, email, name, password_hash) values ($1, $2, 'Test', 'x')",
-				[id, `test-${id}@feitio.test`],
+				"insert into users (id, email, name, cpf, password_hash) values ($1, $2, 'Test', $3, 'x')",
+				[id, `test-${id}@feitio.test`, randomCpf()],
 			);
 		}
 		// Ana owns A and works at B; Bia owns B. Memberships go in through

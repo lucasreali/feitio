@@ -7,6 +7,7 @@ import {
 	timestamp,
 	uuid,
 } from "drizzle-orm/pg-core";
+import type { Cpf } from "../../domain/cpf.js";
 import type { Email } from "../../domain/email.js";
 import type { UserId } from "../../domain/ids.js";
 import { appRole } from "../roles.js";
@@ -25,6 +26,8 @@ export const users = pgTable(
 		/** Always lowercase (Email normalizes it), so `unique` covers every spelling. */
 		email: text("email").notNull().unique().$type<Email>(),
 		name: text("name").notNull(),
+		/** The 11 digits, validated by Cpf; one user per person. */
+		cpf: text("cpf").notNull().unique().$type<Cpf>(),
 		/** scrypt hash from src/auth/password.ts; the password is never stored. */
 		passwordHash: text("password_hash").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
@@ -44,6 +47,7 @@ export const users = pgTable(
 			"users_email_lowercase",
 			sql`${table.email} = lower(${table.email})`,
 		),
+		check("users_cpf_digits", sql`${table.cpf} ~ '^[0-9]{11}$'`),
 		// The API reads users to sign them in, before any tenant is known.
 		// Users are written by the owner of the tables only, for now.
 		pgPolicy("users_app_read", {

@@ -44,7 +44,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 
   There are no default privileges: a table without its grant stays closed to the API.
 - `tenants` has RLS with a read-only policy for `feitio_app`; only the owner writes it.
-- `users` (admin panel users) is a platform table like `tenants`: one user can belong to several tenants, the owner writes it and `feitio_app` only reads it. E-mails are stored lowercase (`Email` in `src/domain/email.ts`, plus a `CHECK`), and passwords only as scrypt hashes (`src/auth/password.ts`, `node:crypto`, no dependency).
+- `users` (admin panel users) is a platform table like `tenants`: one user can belong to several tenants, the owner writes it and `feitio_app` only reads it. E-mails are stored lowercase (`Email` in `src/domain/email.ts`, plus a `CHECK`), the CPF is required, unique and stored as its 11 digits (`Cpf` in `src/domain/cpf.ts` checks the check digits), and passwords only as scrypt hashes (`src/auth/password.ts`, `node:crypto`, no dependency).
 - `memberships` ties a user to a tenant with a role (`owner` or `staff`). Besides `tenantIsolation`, it has a read-only policy on `app.user_id` (`currentUserId`), so sign-in can list a user's tenants before one is chosen; writes stay within the current tenant.
 
 ## File storage
