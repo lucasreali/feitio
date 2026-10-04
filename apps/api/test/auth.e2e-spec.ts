@@ -226,7 +226,7 @@ describe("Admin panel sign-in (e2e)", () => {
 			}
 
 			expect((await right(target, randomIp())).statusCode).toBe(429);
-		});
+		}, 60_000); // 100 password checks.
 
 		it("starts the count over after a successful sign-in", async () => {
 			const target = await newMember();
