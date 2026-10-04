@@ -4,6 +4,7 @@ import fastifyHelmet from "@fastify/helmet";
 import fastifyMultipart from "@fastify/multipart";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { SESSION_SECURITY } from "./auth/panel-scoped.decorator.js";
 import { csrfHmacKey, csrfSessionBinding } from "./session/csrf.js";
 import { readSessionConfig } from "./session/session.config.js";
 
@@ -64,6 +65,7 @@ export async function configureApp(app: NestFastifyApplication) {
 	const openApiConfig = new DocumentBuilder()
 		.setTitle("Feitio API")
 		.setVersion("1.0")
+		.addCookieAuth(session.cookieName, { type: "apiKey" }, SESSION_SECURITY)
 		.build();
 	SwaggerModule.setup(
 		DOCS_PATH.slice(1),

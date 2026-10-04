@@ -53,7 +53,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 - [ ] Troca de loja ativa para usuário com mais de um vínculo
 - [ ] Rota de dados do usuário logado
 - [ ] Limite de tentativas de login
-- [ ] Guards de sessão e de papel
+- [x] Guards de sessão e de papel
 - [ ] Edição das configurações da loja pelo dono
 - [ ] Comando para criar loja com o primeiro usuário dono
 - [ ] Depois do módulo de notificações: convite por e-mail e recuperação de senha

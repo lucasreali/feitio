@@ -63,6 +63,11 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
   - Protect routes with `@UseGuards(SessionGuard)` and read the session with `@CurrentSession()`. Every authentication failure is the same generic 401; data-changing methods also need a CSRF token (403).
   - `SessionService.destroyAllForUser(userId)` ends every session of a user: call it on password change or account lock. Renewal only rewrites a session that still exists, so a session ended mid-request stays ended.
 
+## Admin panel access
+
+- Panel routes use `@PanelScoped()` or `@PanelScoped("owner")` (`src/auth/`), and their module imports `AuthModule`. It runs `SessionGuard` (session and CSRF) and then `PanelGuard`, which checks on every request that the user is still a member of the session's tenant and that the tenant is active (401 otherwise), and that the member has the route's role (403). The handler then runs in `TenantContext` with the session's tenant, like a `@TenantScoped()` route.
+- `MembershipsRepository` reads a user's memberships with `app.user_id` set, before a tenant is chosen.
+
 ## SOLID
 
 SOLID is the default for API code. Every case still needs a cost/benefit call, and when you choose not to apply a principle, leave the reason in a short `SOLID:` comment in the code.

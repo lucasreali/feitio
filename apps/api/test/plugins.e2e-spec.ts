@@ -7,6 +7,7 @@ import { Test } from "@nestjs/testing";
 import type { FastifyRequest } from "fastify";
 import { AppModule } from "../src/app.module.js";
 import { configureApp, MAX_UPLOAD_BYTES } from "../src/app.setup.js";
+import { readSessionConfig } from "../src/session/session.config.js";
 
 /** Test-only routes; the API itself has no upload route yet. */
 @Controller("test-plugins")
@@ -156,6 +157,14 @@ describe("Fastify plugins (e2e)", () => {
 			});
 			expect(spec.statusCode).toBe(200);
 			expect(spec.json()).toHaveProperty("openapi");
+			// Panel routes declare it with @PanelScoped().
+			expect(spec.json().components.securitySchemes).toEqual({
+				session: {
+					type: "apiKey",
+					in: "cookie",
+					name: readSessionConfig().cookieName,
+				},
+			});
 		});
 	});
 });
