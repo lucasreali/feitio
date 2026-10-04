@@ -5,11 +5,15 @@
 	"main": "index.js",
 	"scripts": {
 		"dev:api": "pnpm --filter api start:dev",
+		"dev:admin": "pnpm --filter admin dev",
+		"dev:checkout": "pnpm --filter checkout dev",
+		"dev:storefront": "pnpm --filter storefront-starter dev",
 		"format": "biome format --write",
 		"check": "biome check --write",
 		"test": "vitest run",
 		"services:up": "pnpm --filter api services:up",
-		"services:down": "pnpm --filter api services:down"
+		"services:down": "pnpm --filter api services:down",
+		"build": "pnpm -r build"
 	},
 	"keywords": [],
 	"author": "",

@@ -7,7 +7,12 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!.claude", "!apps/api/drizzle"]
+		"includes": [
+			"**",
+			"!.claude",
+			"!apps/api/drizzle",
+			"!**/routeTree.gen.ts"
+		]
 	},
 	"formatter": {
 		"enabled": true,

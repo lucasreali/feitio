@@ -1,0 +1,14 @@
+{
+	"extends": "@feitio/config/tsconfig.react.json",
+	"include": ["**/*.ts", "**/*.tsx"],
+	"compilerOptions": {
+		"types": ["vite/client", "node"],
+		"paths": {
+			"#/*": ["./src/*"]
+		},
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedSideEffectImports": true
+	}
+}
