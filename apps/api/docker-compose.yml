@@ -1,15 +1,15 @@
 # Local services for development. The database and file storage are not here:
 # every environment uses the PostgreSQL and S3 configured in .env (Supabase).
 services:
-  redis:
-    # Valkey: BSD-licensed and Redis-compatible; the API only needs REDIS_URL.
+  valkey:
+    # Valkey is the in-memory store (sessions now; cache and queues later). Pinned version.
     image: valkey/valkey:9.1.2-alpine
     # BullMQ requires noeviction: an evicted key would be a lost job.
     command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - valkey-data:/data
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 2s
@@ -17,4 +17,4 @@ services:
       retries: 15
 
 volumes:
-  redis-data:
+  valkey-data:
