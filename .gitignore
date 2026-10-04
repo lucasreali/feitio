@@ -10,3 +10,6 @@ coverage/
 
 # Database CA certificates (download per environment)
 apps/api/certs/
+
+# Claude Code machine-local settings
+**/.claude/settings.local.json
