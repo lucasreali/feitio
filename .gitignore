@@ -7,3 +7,6 @@ coverage/
 /.cortex/*
 !/.cortex/config
 !/.cortex/decisions/
+
+# Database CA certificates (download per environment)
+apps/api/certs/

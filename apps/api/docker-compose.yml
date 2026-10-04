@@ -1,55 +1,20 @@
+# Local services for development. The database and file storage are not here:
+# every environment uses the PostgreSQL and S3 configured in .env (Supabase).
 services:
-  postgres:
-    image: postgres:18-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is not set, copy .env.example to .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set, copy .env.example to .env}
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is not set, copy .env.example to .env}
+  redis:
+    # Valkey: BSD-licensed and Redis-compatible; the API only needs REDIS_URL.
+    image: valkey/valkey:9.1.2-alpine
+    # BullMQ requires noeviction: an evicted key would be a lost job.
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "6379:6379"
     volumes:
-      # Postgres 18+ images keep data under /var/lib/postgresql/<major>/docker.
-      - postgres-data:/var/lib/postgresql
+      - redis-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD", "valkey-cli", "ping"]
       interval: 2s
       timeout: 5s
       retries: 15
 
-  storage:
-    image: rustfs/rustfs:1.0.0
-    environment:
-      RUSTFS_ACCESS_KEY: ${STORAGE_ACCESS_KEY_ID:?STORAGE_ACCESS_KEY_ID is not set, copy .env.example to .env}
-      RUSTFS_SECRET_KEY: ${STORAGE_SECRET_ACCESS_KEY:?STORAGE_SECRET_ACCESS_KEY is not set, copy .env.example to .env}
-    ports:
-      - "9000:9000"
-    volumes:
-      - storage-data:/data
-
-  # One-shot job: creates both buckets and makes only the public one readable by anyone.
-  # Started by `pnpm services:up` after the other services are up.
-  storage-init:
-    image: amazon/aws-cli:2.37.4
-    profiles: [setup]
-    depends_on: [storage]
-    environment:
-      AWS_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
-      AWS_DEFAULT_REGION: ${STORAGE_REGION:?STORAGE_REGION is not set, copy .env.example to .env}
-      AWS_ENDPOINT_URL: http://storage:9000
-      PUBLIC_BUCKET: ${STORAGE_PUBLIC_BUCKET:?STORAGE_PUBLIC_BUCKET is not set, copy .env.example to .env}
-      PRIVATE_BUCKET: ${STORAGE_PRIVATE_BUCKET:?STORAGE_PRIVATE_BUCKET is not set, copy .env.example to .env}
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -e
-        until aws s3api list-buckets > /dev/null 2>&1; do sleep 1; done
-        for bucket in "$$PUBLIC_BUCKET" "$$PRIVATE_BUCKET"; do
-          aws s3api head-bucket --bucket "$$bucket" 2> /dev/null || aws s3api create-bucket --bucket "$$bucket"
-        done
-        aws s3api put-bucket-policy --bucket "$$PUBLIC_BUCKET" --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"s3:GetObject\"],\"Resource\":[\"arn:aws:s3:::$$PUBLIC_BUCKET/*\"]}]}"
-        echo "Buckets $$PUBLIC_BUCKET (public) and $$PRIVATE_BUCKET (private) are ready"
-
 volumes:
-  postgres-data:
-  storage-data:
+  redis-data:
