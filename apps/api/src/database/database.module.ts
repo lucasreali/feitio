@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { requireEnv } from "../config/env.js";
 import { DATABASE, type Database } from "./database.js";
 import { DatabaseHealth } from "./database-health.js";
 import { schemas } from "./schema.js";
@@ -17,14 +18,8 @@ const logger = new Logger("Database");
 		{
 			provide: DATABASE,
 			useFactory: (): Database => {
-				const url = process.env.DATABASE_URL;
-				if (!url) {
-					throw new Error(
-						"DATABASE_URL is not set. Copy apps/api/.env.example to apps/api/.env or set it in the environment.",
-					);
-				}
 				const pool = new Pool({
-					connectionString: url,
+					connectionString: requireEnv("DATABASE_URL"),
 					connectionTimeoutMillis: 5_000,
 				});
 				// The database (or the pooler) can drop an idle connection at any

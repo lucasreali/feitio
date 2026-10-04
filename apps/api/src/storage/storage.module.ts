@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { configError, missingEnv } from "../config/env.js";
 import { FileStorage } from "./file-storage.js";
 import { createS3Client, S3FileStorage } from "./s3-file-storage.js";
 
@@ -17,12 +18,10 @@ const requiredEnv = {
 		{
 			provide: FileStorage,
 			useFactory: (): FileStorage => {
-				const missing = Object.values(requiredEnv).filter(
-					(name) => !process.env[name],
-				);
+				const missing = missingEnv(Object.values(requiredEnv));
 				if (missing.length > 0) {
-					throw new Error(
-						`Missing storage environment variables: ${missing.join(", ")}. Copy apps/api/.env.example to apps/api/.env or set them in the environment.`,
+					configError(
+						`Missing storage environment variables: ${missing.join(", ")}.`,
 					);
 				}
 				const env = (name: string) => process.env[name] as string;

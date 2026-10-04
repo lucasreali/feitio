@@ -1,4 +1,5 @@
 import { Logger, Module, type OnApplicationShutdown } from "@nestjs/common";
+import { requireEnv } from "../config/env.js";
 import { Valkey } from "./valkey.js";
 import { ValkeyHealth } from "./valkey-health.js";
 
@@ -14,14 +15,8 @@ const logger = new Logger("Valkey");
 		{
 			provide: Valkey,
 			useFactory: (): Valkey => {
-				const url = process.env.VALKEY_URL;
-				if (!url) {
-					throw new Error(
-						"VALKEY_URL is not set. Copy apps/api/.env.example to apps/api/.env or set it in the environment.",
-					);
-				}
 				// Connects on the first command, so the API starts even before Valkey is up.
-				const client = new Valkey(url, {
+				const client = new Valkey(requireEnv("VALKEY_URL"), {
 					lazyConnect: true,
 					connectTimeout: 5_000,
 					maxRetriesPerRequest: 1,
