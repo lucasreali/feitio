@@ -16,5 +16,9 @@ export default defineConfig({
 		name: "api-e2e",
 		root: import.meta.dirname,
 		include: ["**/*.e2e-spec.ts"],
+		// Each file holds a few database connections (the API's pool and the
+		// fixtures' clients). Supabase's session pooler accepts 15 clients, so
+		// more files at once fail with EMAXCONNSESSION.
+		maxWorkers: 3,
 	},
 });
