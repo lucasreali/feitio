@@ -1,4 +1,6 @@
+import { createHmac } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import type { Session } from "./session.service.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -23,3 +25,16 @@ export function hasValidCsrfToken(
 		request.server.csrfProtection(request, capture, () => resolve(true));
 	});
 }
+
+/**
+ * Binds CSRF tokens to one session: a token only verifies for the session
+ * it was issued to, so a CSRF secret planted from elsewhere is useless.
+ */
+export const csrfSessionBinding = (session: Session) =>
+	`${session.userId}:${session.createdAt}`;
+
+/** HMAC key for session-bound tokens, derived from COOKIE_SECRET. */
+export const csrfHmacKey = (cookieSecret: string) =>
+	createHmac("sha256", cookieSecret)
+		.update("csrf-session-binding")
+		.digest("hex");

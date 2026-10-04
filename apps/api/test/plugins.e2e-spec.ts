@@ -102,22 +102,12 @@ describe("Fastify plugins (e2e)", () => {
 	});
 
 	describe("CSRF token", () => {
-		it("is issued with its secret in a signed, HttpOnly cookie", async () => {
+		it("is only issued to a valid session", async () => {
 			const response = await app.inject({
 				method: "GET",
 				url: "/csrf-token",
 			});
-
-			expect(response.statusCode).toBe(200);
-			expect(response.json<{ token: string }>().token).toMatch(/\S{20,}/);
-			const secret = response.cookies.find((c) => c.name === "_csrf");
-			expect(secret).toMatchObject({
-				httpOnly: true,
-				sameSite: "Lax",
-				path: "/",
-			});
-			// Signed with COOKIE_SECRET: "<value>.<signature>".
-			expect(secret?.value).toContain(".");
+			expect(response.statusCode).toBe(401);
 		});
 	});
 

@@ -10,7 +10,7 @@ Plugins in use:
 
 - `@fastify/helmet`: security headers on every response with Helmet's default policy. Only routes under `/docs` (Swagger UI) get a Content-Security-Policy without `upgrade-insecure-requests`, set through an `onRoute` hook registered before helmet. Do not relax the policy anywhere else.
 - `@fastify/cookie`: signed cookies (`COOKIE_SECRET`).
-- `@fastify/csrf-protection`: CSRF secret in a signed `_csrf` cookie. `SessionGuard` checks the `x-csrf-token` header on `POST`, `PUT`, `PATCH` and `DELETE` (`src/session/csrf.ts` runs the plugin's own check); the UIs get tokens from `GET /csrf-token`. Routes without `SessionGuard` (tenant-header routes, `/health`, docs, webhooks) are exempt by construction.
+- `@fastify/csrf-protection`: CSRF secret in a signed `_csrf` cookie, and tokens bound to the session that asked for them (`getUserInfo` + an HMAC key derived from `COOKIE_SECRET`), so a token from another session or a planted secret is refused. `SessionGuard` checks the `x-csrf-token` header on `POST`, `PUT`, `PATCH` and `DELETE` (`src/session/csrf.ts` runs the plugin's own check); the UIs get tokens from `GET /csrf-token`, which requires a session. Routes without `SessionGuard` (tenant-header routes, `/health`, docs, webhooks) are exempt by construction.
 - `@fastify/multipart`: uploads limited to `MAX_UPLOAD_BYTES` (5 MB) per file; larger files fail with 413. There are no upload routes yet.
 - `@fastify/static`: serves the Swagger UI assets.
 

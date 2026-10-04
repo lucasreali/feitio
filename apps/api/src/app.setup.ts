@@ -4,6 +4,7 @@ import fastifyHelmet from "@fastify/helmet";
 import fastifyMultipart from "@fastify/multipart";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import { csrfHmacKey, csrfSessionBinding } from "./session/csrf.js";
 import { readSessionConfig } from "./session/session.config.js";
 
 /** Largest file accepted in a multipart upload. */
@@ -35,9 +36,13 @@ export async function configureApp(app: NestFastifyApplication) {
 	await app.register(fastifyHelmet);
 	const session = readSessionConfig();
 	await app.register(fastifyCookie, { secret: session.cookieSecret });
-	// CSRF secret in its own signed cookie; SessionGuard checks the token on
-	// data-changing methods, and GET /csrf-token hands tokens to the UIs.
+	// CSRF secret in its own signed cookie, and tokens bound to the session
+	// that asked for them. SessionGuard checks the token on data-changing
+	// methods; GET /csrf-token (session required) hands tokens to the UIs.
 	await app.register(fastifyCsrfProtection, {
+		getUserInfo: (request) =>
+			request.authSession ? csrfSessionBinding(request.authSession) : "",
+		csrfOpts: { hmacKey: csrfHmacKey(session.cookieSecret) },
 		cookieOpts: {
 			path: "/",
 			httpOnly: true,

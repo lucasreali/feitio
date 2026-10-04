@@ -241,11 +241,14 @@ describe("Sessions (e2e)", () => {
 	});
 
 	describe("CSRF on session-protected routes", () => {
-		const csrfToken = async () => {
+		// Tokens are bound to the session that asks for them.
+		const csrfToken = async (sessionCookie: string) => {
 			const response = await app.inject({
 				method: "GET",
 				url: "/csrf-token",
+				cookies: { [config.cookieName]: sessionCookie },
 			});
+			expect(response.statusCode).toBe(200);
 			const secret = response.cookies.find((c) => c.name === "_csrf");
 			if (!secret) {
 				throw new Error("CSRF secret cookie was not set");
@@ -262,7 +265,7 @@ describe("Sessions (e2e)", () => {
 
 		it("refuses a data-changing request without a CSRF token", async () => {
 			const { cookie } = await start();
-			const { secret } = await csrfToken();
+			const { secret, token } = await csrfToken(cookie.value);
 
 			const withoutToken = await change({
 				[config.cookieName]: cookie.value,
@@ -272,14 +275,14 @@ describe("Sessions (e2e)", () => {
 
 			const withoutSecret = await change(
 				{ [config.cookieName]: cookie.value },
-				(await csrfToken()).token,
+				token,
 			);
 			expect(withoutSecret.statusCode).toBe(403);
 		});
 
 		it("refuses a forged CSRF token", async () => {
 			const { cookie } = await start();
-			const { secret, token } = await csrfToken();
+			const { secret, token } = await csrfToken(cookie.value);
 
 			const response = await change(
 				{ [config.cookieName]: cookie.value, _csrf: secret.value },
@@ -288,9 +291,31 @@ describe("Sessions (e2e)", () => {
 			expect(response.statusCode).toBe(403);
 		});
 
+		it("refuses a token issued to another session", async () => {
+			const attacker = await start();
+			const victim = await start();
+			// Secret and token the attacker obtained for their own session.
+			const { secret, token } = await csrfToken(attacker.cookie.value);
+
+			const response = await change(
+				{
+					[config.cookieName]: victim.cookie.value,
+					_csrf: secret.value,
+				},
+				token,
+			);
+			expect(response.statusCode).toBe(403);
+		});
+
 		it("accepts a data-changing request with a valid CSRF token", async () => {
 			const { owner, cookie } = await start();
-			const { secret, token } = await csrfToken();
+			const { secret, token } = await csrfToken(cookie.value);
+			// `secure` follows NODE_ENV in configureApp(), not this test's config.
+			expect(secret).toMatchObject({
+				httpOnly: true,
+				sameSite: "Lax",
+				path: "/",
+			});
 
 			const response = await change(
 				{ [config.cookieName]: cookie.value, _csrf: secret.value },

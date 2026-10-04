@@ -27,13 +27,14 @@ export class SessionGuard implements CanActivate {
 		if (!session) {
 			throw new UnauthorizedException();
 		}
+		// Set before the CSRF check: tokens are bound to this session.
+		request.authSession = session;
 		if (
 			changesData(request) &&
 			!(await hasValidCsrfToken(request, reply))
 		) {
 			throw new ForbiddenException("Invalid CSRF token");
 		}
-		request.authSession = session;
 		return true;
 	}
 }
