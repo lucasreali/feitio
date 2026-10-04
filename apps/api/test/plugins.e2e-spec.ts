@@ -113,7 +113,10 @@ describe("Fastify plugins (e2e)", () => {
 
 	describe("security headers", () => {
 		it("are sent on API responses, with the full default policy", async () => {
-			const response = await app.inject({ method: "GET", url: "/" });
+			const response = await app.inject({
+				method: "GET",
+				url: "/health",
+			});
 
 			expect(response.statusCode).toBe(200);
 			expect(response.headers).toMatchObject({
