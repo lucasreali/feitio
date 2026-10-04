@@ -145,6 +145,7 @@ Wrapping primitives pays off for some values and weighs on the code if applied t
   - **Money:** never a loose number. `Money` (`src/domain/money.ts`) is the amount as an integer number of cents and owns the operations, added as callers need them. Routes take and return prices as integer cents.
   - **Identifiers:** each entity has its own id type, so a tenant id cannot go where a user, session or order id is expected (`TenantId`, `UserId`, `SessionId`).
   - **Slugs and other public identifiers:** the type guarantees a valid format when created (`TenantSlug`, `Slug` for products and collections, `Sku`).
+  - **Brazilian personal data:** `Cpf`, `Cnpj` (letters allowed in the first 12 characters since July 2026), `TaxId` (either one, told apart by length), `Phone` (stored in E.164, `+55...`), `Cep` (8 digits) and `BrazilianState` (`SP`, `DF`...). Each accepts the usual formatting and stores one spelling.
 - **Do not wrap by default:** free text (names, descriptions, messages) and plain numbers (quantities, counters, positions).
 - **Other cases:** wrap when the value has a format or validation rule, can be confused with another value of the same primitive, or carries its own operations. Keep the primitive when a new type would only add ceremony. Weigh type safety, clarity, simplicity and conversion cost, and leave the reason in a short comment when you keep a primitive that the rule would wrap.
 - **How:**
