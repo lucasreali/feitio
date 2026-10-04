@@ -59,6 +59,44 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
   - Protect routes with `@UseGuards(SessionGuard)` and read the session with `@CurrentSession()`. Every authentication failure is the same generic 401; data-changing methods also need a CSRF token (403).
   - `SessionService.destroyAllForUser(userId)` ends every session of a user: call it on password change or account lock. Renewal only rewrites a session that still exists, so a session ended mid-request stays ended.
 
+## SOLID
+
+SOLID is the default for API code. Every case still needs a cost/benefit call, and when you choose not to apply a principle, leave the reason in a short `SOLID:` comment in the code.
+
+What each principle means here:
+
+- **Single responsibility.** A class or function has one reason to change.
+  - `TenantDatabase` only binds a transaction to the tenant.
+  - The tenant resolver and the guard live apart.
+  - `toStoreSettingsDto` (`src/store-settings/store-settings.mapper.ts`) keeps the response mapping out of the controller.
+  - A future payment module keeps "charge the card" apart from "mark the order paid".
+- **Open/closed.** Extend by adding, not by editing what works.
+  - Allowed upload types are data in `src/storage/file-types.ts`.
+  - A new shipping carrier will be a new class behind the shipping interface, without touching checkout code.
+- **Liskov substitution.** Any implementation honors its contract fully. A new `FileStorage` (for example, another S3 provider) must also refuse disallowed types, build keys with `buildObjectKey`, and make `temporaryUrl` force download.
+- **Interface segregation.** Clients depend only on what they use. Split an interface when real callers need only part of it, not in advance: `FileStorage` stays whole until a caller needs only public files.
+- **Dependency inversion.** Business code depends on abstractions it owns where a vendor or infrastructure can change.
+  - `FileStorage` hides S3, and `S3FileStorage` receives its `S3Client` from `StorageModule`.
+  - A payment gateway (Asaas today) will sit behind a payment interface.
+
+How to decide, for each case:
+
+- **Organization:** does the split make the code easier to find and understand?
+- **Coupling:** does it reduce dependence between modules, or on a vendor?
+- **Testability:** can the rule be tested without infrastructure?
+- **Simplicity:** does the abstraction pay for itself, or only add files and indirection?
+- **Performance:** does it add real cost on a hot path?
+- **Real chance of change:** does this point vary (payment, shipping, storage, fiscal documents) or is it stable?
+
+Prefer the direct solution when an abstraction would have a single implementation that should not vary, when a layer would only forward calls, or when the generalization serves an uncertain future. Kept deviations today, each with its `SOLID:` comment:
+
+- `SessionService`: storage and cookie together.
+- `SessionGuard`: session and CSRF together.
+- `HealthController`: concrete checks.
+- `TenantDatabase`: no interface.
+- `FileStorage`: one interface.
+- `Valkey`: the full client.
+
 ## Tests
 
 - Unit: `src/**/*.spec.ts` (`pnpm test --project api`).
