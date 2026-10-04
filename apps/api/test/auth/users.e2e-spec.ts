@@ -1,6 +1,6 @@
 import pg from "pg";
-import { isUuidV7 } from "../src/domain/uuid-v7.js";
-import { randomCpf } from "./fixtures.js";
+import { isUuidV7 } from "../../src/domain/uuid-v7.js";
+import { randomCpf } from "../fixtures.js";
 
 // Users are platform rows, shared by every tenant: written by the owner of
 // the tables (MIGRATION_DATABASE_URL), only read by the application role.

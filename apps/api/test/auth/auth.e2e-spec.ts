@@ -3,11 +3,11 @@ import {
 	type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import { AppModule } from "../src/app.module.js";
-import { configureApp } from "../src/app.setup.js";
-import { readSessionConfig } from "../src/session/session.config.js";
-import { SessionService } from "../src/session/session.service.js";
-import { Fixtures, type TestTenant, type TestUser } from "./fixtures.js";
+import { AppModule } from "../../src/app.module.js";
+import { configureApp } from "../../src/app.setup.js";
+import { readSessionConfig } from "../../src/session/session.config.js";
+import { SessionService } from "../../src/session/session.service.js";
+import { Fixtures, type TestTenant, type TestUser } from "../fixtures.js";
 
 // Runs against the real PostgreSQL and Valkey in .env.
 describe("Admin panel sign-in (e2e)", () => {

@@ -4,17 +4,17 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import pg from "pg";
-import { AppModule } from "../src/app.module.js";
-import { configureApp } from "../src/app.setup.js";
+import { AppModule } from "../../src/app.module.js";
+import { configureApp } from "../../src/app.setup.js";
 import {
 	type StoreTheme,
 	storeSettings,
-} from "../src/database/schemas/store-settings.js";
-import { HttpsUrl } from "../src/domain/https-url.js";
-import { TenantId } from "../src/domain/ids.js";
-import { TenantSlug } from "../src/domain/tenant-slug.js";
-import { TenantContext } from "../src/tenancy/tenant-context.js";
-import { TenantDatabase } from "../src/tenancy/tenant-database.js";
+} from "../../src/database/schemas/store-settings.js";
+import { HttpsUrl } from "../../src/domain/https-url.js";
+import { TenantId } from "../../src/domain/ids.js";
+import { TenantSlug } from "../../src/domain/tenant-slug.js";
+import { TenantContext } from "../../src/tenancy/tenant-context.js";
+import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 
 // Runs against the real PostgreSQL in .env (see tenant-isolation.e2e-spec.ts).
 describe("GET /store/settings (e2e)", () => {

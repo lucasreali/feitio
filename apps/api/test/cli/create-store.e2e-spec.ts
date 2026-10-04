@@ -4,14 +4,14 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import pg from "pg";
-import { AppModule } from "../src/app.module.js";
-import { configureApp } from "../src/app.setup.js";
-import { createStore } from "../src/cli/create-store.js";
-import type { CreateStoreInput } from "../src/cli/create-store-args.js";
-import { Email } from "../src/domain/email.js";
-import { TenantSlug } from "../src/domain/tenant-slug.js";
-import { SessionService } from "../src/session/session.service.js";
-import { randomCpf } from "./fixtures.js";
+import { AppModule } from "../../src/app.module.js";
+import { configureApp } from "../../src/app.setup.js";
+import { createStore } from "../../src/cli/create-store.js";
+import type { CreateStoreInput } from "../../src/cli/create-store-args.js";
+import { Email } from "../../src/domain/email.js";
+import { TenantSlug } from "../../src/domain/tenant-slug.js";
+import { SessionService } from "../../src/session/session.service.js";
+import { randomCpf } from "../fixtures.js";
 
 // Runs against the real PostgreSQL and Valkey in .env, with the same two
 // connections the command uses.

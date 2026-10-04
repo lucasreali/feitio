@@ -1,8 +1,8 @@
 import { Test } from "@nestjs/testing";
 import pg from "pg";
-import { DATABASE, type Database } from "../src/database/database.js";
-import { DatabaseModule } from "../src/database/database.module.js";
-import { DatabaseHealth } from "../src/database/database-health.js";
+import { DATABASE, type Database } from "../../src/database/database.js";
+import { DatabaseModule } from "../../src/database/database.module.js";
+import { DatabaseHealth } from "../../src/database/database-health.js";
 
 // Runs against the real PostgreSQL in DATABASE_URL.
 describe("DatabaseModule (e2e)", () => {

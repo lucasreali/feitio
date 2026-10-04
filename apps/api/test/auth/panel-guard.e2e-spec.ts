@@ -5,14 +5,14 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import type { FastifyReply } from "fastify";
-import { configureApp } from "../src/app.setup.js";
-import { AuthModule } from "../src/auth/auth.module.js";
-import { PanelScoped } from "../src/auth/panel-scoped.decorator.js";
-import { TenantId, UserId } from "../src/domain/ids.js";
-import { readSessionConfig } from "../src/session/session.config.js";
-import { SessionService } from "../src/session/session.service.js";
-import { TenantContext } from "../src/tenancy/tenant-context.js";
-import { Fixtures, type TestTenant, type TestUser } from "./fixtures.js";
+import { configureApp } from "../../src/app.setup.js";
+import { AuthModule } from "../../src/auth/auth.module.js";
+import { PanelScoped } from "../../src/auth/panel-scoped.decorator.js";
+import { TenantId, UserId } from "../../src/domain/ids.js";
+import { readSessionConfig } from "../../src/session/session.config.js";
+import { SessionService } from "../../src/session/session.service.js";
+import { TenantContext } from "../../src/tenancy/tenant-context.js";
+import { Fixtures, type TestTenant, type TestUser } from "../fixtures.js";
 
 /** Test-only routes: one for any member, one for owners. */
 @Controller("test-panel")

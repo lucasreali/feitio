@@ -1,5 +1,5 @@
 import pg from "pg";
-import { isUuidV7 } from "../src/domain/uuid-v7.js";
+import { isUuidV7 } from "../../src/domain/uuid-v7.js";
 
 // Runs against the real PostgreSQL in MIGRATION_DATABASE_URL (the owner of
 // the tables, the only role that writes tenants).

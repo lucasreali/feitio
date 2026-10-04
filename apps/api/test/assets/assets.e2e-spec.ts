@@ -4,22 +4,22 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import { eq } from "drizzle-orm";
-import { AppModule } from "../src/app.module.js";
-import { configureApp } from "../src/app.setup.js";
-import { DATABASE, type Database } from "../src/database/database.js";
-import { assets } from "../src/database/schemas/assets.js";
-import { SessionService } from "../src/session/session.service.js";
-import { FileStorage } from "../src/storage/file-storage.js";
-import { buildObjectKey } from "../src/storage/object-key.js";
-import { TenantContext } from "../src/tenancy/tenant-context.js";
-import { TenantDatabase } from "../src/tenancy/tenant-database.js";
+import { AppModule } from "../../src/app.module.js";
+import { configureApp } from "../../src/app.setup.js";
+import { DATABASE, type Database } from "../../src/database/database.js";
+import { assets } from "../../src/database/schemas/assets.js";
+import { SessionService } from "../../src/session/session.service.js";
+import { FileStorage } from "../../src/storage/file-storage.js";
+import { buildObjectKey } from "../../src/storage/object-key.js";
+import { TenantContext } from "../../src/tenancy/tenant-context.js";
+import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 import {
 	Fixtures,
 	type PanelAuth,
 	signIn,
 	type TestTenant,
 	type TestUser,
-} from "./fixtures.js";
+} from "../fixtures.js";
 
 const PNG = Buffer.from([
 	0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x70, 0x6e, 0x67,

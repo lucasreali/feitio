@@ -1,7 +1,7 @@
 import { Test } from "@nestjs/testing";
-import { TenantId } from "../src/domain/ids.js";
-import { FileStorage } from "../src/storage/file-storage.js";
-import { StorageModule } from "../src/storage/storage.module.js";
+import { TenantId } from "../../src/domain/ids.js";
+import { FileStorage } from "../../src/storage/file-storage.js";
+import { StorageModule } from "../../src/storage/storage.module.js";
 
 // Runs against the real storage configured in .env, under a random tenant it deletes.
 describe("FileStorage (e2e)", () => {

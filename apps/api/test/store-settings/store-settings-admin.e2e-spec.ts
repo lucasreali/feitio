@@ -3,14 +3,14 @@ import {
 	type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
-import { AppModule } from "../src/app.module.js";
-import { configureApp } from "../src/app.setup.js";
-import { storeSettings } from "../src/database/schemas/store-settings.js";
-import { readSessionConfig } from "../src/session/session.config.js";
-import { SessionService } from "../src/session/session.service.js";
-import { TenantContext } from "../src/tenancy/tenant-context.js";
-import { TenantDatabase } from "../src/tenancy/tenant-database.js";
-import { Fixtures, type TestTenant, type TestUser } from "./fixtures.js";
+import { AppModule } from "../../src/app.module.js";
+import { configureApp } from "../../src/app.setup.js";
+import { storeSettings } from "../../src/database/schemas/store-settings.js";
+import { readSessionConfig } from "../../src/session/session.config.js";
+import { SessionService } from "../../src/session/session.service.js";
+import { TenantContext } from "../../src/tenancy/tenant-context.js";
+import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
+import { Fixtures, type TestTenant, type TestUser } from "../fixtures.js";
 
 // Runs against the real PostgreSQL and Valkey in .env.
 describe("PATCH /admin/store/settings (e2e)", () => {

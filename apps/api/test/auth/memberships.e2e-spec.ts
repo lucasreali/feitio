@@ -1,6 +1,6 @@
 import pg from "pg";
-import { TenantId, UserId } from "../src/domain/ids.js";
-import { randomCpf } from "./fixtures.js";
+import { TenantId, UserId } from "../../src/domain/ids.js";
+import { randomCpf } from "../fixtures.js";
 
 // Memberships tie a user to a tenant with a role. The application role sees a
 // membership when it belongs to the current tenant (app.tenant_id) or to the

@@ -71,14 +71,14 @@ Every new piece of code is built test first.
 ### Where tests live
 
 - API unit tests: `apps/api/src/**/<name>.spec.ts`, next to the code.
-- API integration and e2e tests: `apps/api/test/<name>.e2e-spec.ts`. They need `apps/api/.env`, Valkey (`pnpm services:up`) and the PostgreSQL and S3 configured there.
+- API integration and e2e tests: `apps/api/test/<module>/<name>.e2e-spec.ts`, in the folder of the `src/` module they cover. They need `apps/api/.env`, Valkey (`pnpm services:up`) and the PostgreSQL and S3 configured there.
 - UI tests: `src/**/<name>.test.ts(x)`, next to the code (jsdom + Testing Library).
 
 ### Commands
 
 - Whole monorepo: `pnpm test`, then `pnpm --filter api test:e2e`.
 - One project: `pnpm test --project <name>` (`api`, `admin`, `checkout`, `storefront-starter`), or `pnpm --filter <project> test`.
-- One file: `pnpm test <path>` from the root, or `pnpm --filter api test:e2e test/<name>.e2e-spec.ts` for an e2e file.
+- One file: `pnpm test <path>` from the root, or `pnpm --filter api test:e2e test/<module>/<name>.e2e-spec.ts` for an e2e file.
 - One test by name: add `-t "<part of the name>"`.
 
 ## Git

@@ -14,21 +14,21 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { configureApp } from "../src/app.setup.js";
-import { TenantId, UserId } from "../src/domain/ids.js";
-import { CurrentSession } from "../src/session/current-session.decorator.js";
+import { configureApp } from "../../src/app.setup.js";
+import { TenantId, UserId } from "../../src/domain/ids.js";
+import { CurrentSession } from "../../src/session/current-session.decorator.js";
 import {
 	readSessionConfig,
 	SESSION_CONFIG,
-} from "../src/session/session.config.js";
-import { SessionGuard } from "../src/session/session.guard.js";
-import { SessionModule } from "../src/session/session.module.js";
+} from "../../src/session/session.config.js";
+import { SessionGuard } from "../../src/session/session.guard.js";
+import { SessionModule } from "../../src/session/session.module.js";
 import {
 	type NewSession,
 	type Session,
 	SessionService,
-} from "../src/session/session.service.js";
-import { Valkey } from "../src/valkey/valkey.js";
+} from "../../src/session/session.service.js";
+import { Valkey } from "../../src/valkey/valkey.js";
 
 // Runs against the real Valkey in VALKEY_URL (`pnpm services:up`).
 

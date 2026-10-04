@@ -131,5 +131,5 @@ Wrapping primitives pays off for some values and weighs on the code if applied t
 ## Tests
 
 - Unit: `*.spec.ts` next to the code, in `src/` or `scripts/` (`pnpm test --project api`).
-- Integration and e2e: `test/*.e2e-spec.ts` (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env`. Tenant tests create random tenants as the owner and delete them at the end.
+- Integration and e2e: `test/<module>/*.e2e-spec.ts`, mirroring `src/` (`test/auth/`, `test/assets/`...; `plugins.e2e-spec.ts` covers `src/app.setup.ts` and sits at the root) (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env`. Tenant tests create random tenants as the owner and delete them at the end.
 - `test/fixtures.ts` creates tenants, users and memberships (`Fixtures`) and signs a user in to the panel with a CSRF token (`signIn`).

@@ -1,17 +1,17 @@
 import { Test } from "@nestjs/testing";
 import { eq } from "drizzle-orm";
 import pg from "pg";
-import { DATABASE, type Database } from "../src/database/database.js";
-import { DatabaseModule } from "../src/database/database.module.js";
-import { storeSettings } from "../src/database/schemas/store-settings.js";
-import { TenantId } from "../src/domain/ids.js";
-import { TenantSlug } from "../src/domain/tenant-slug.js";
-import { TenancyModule } from "../src/tenancy/tenancy.module.js";
+import { DATABASE, type Database } from "../../src/database/database.js";
+import { DatabaseModule } from "../../src/database/database.module.js";
+import { storeSettings } from "../../src/database/schemas/store-settings.js";
+import { TenantId } from "../../src/domain/ids.js";
+import { TenantSlug } from "../../src/domain/tenant-slug.js";
+import { TenancyModule } from "../../src/tenancy/tenancy.module.js";
 import {
 	type CurrentTenant,
 	TenantContext,
-} from "../src/tenancy/tenant-context.js";
-import { TenantDatabase } from "../src/tenancy/tenant-database.js";
+} from "../../src/tenancy/tenant-context.js";
+import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 
 // Runs against the real PostgreSQL in .env: DATABASE_URL is the application
 // role (feitio_app), MIGRATION_DATABASE_URL the owner of the tables.
