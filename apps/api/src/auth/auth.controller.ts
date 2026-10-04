@@ -5,6 +5,8 @@ import {
 	ForbiddenException,
 	Get,
 	HttpCode,
+	HttpException,
+	HttpStatus,
 	Post,
 	Req,
 	Res,
@@ -15,6 +17,7 @@ import {
 	ApiBadRequestResponse,
 	ApiCookieAuth,
 	ApiForbiddenResponse,
+	ApiTooManyRequestsResponse,
 	ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type { FastifyReply, FastifyRequest } from "fastify";
@@ -24,6 +27,7 @@ import { SessionGuard } from "../session/session.guard.js";
 import { type Session, SessionService } from "../session/session.service.js";
 import { AuthService } from "./auth.service.js";
 import { LoginDto } from "./login.dto.js";
+import { LoginAttempts } from "./login-attempts.js";
 import { MeDto } from "./me.dto.js";
 import { toMeDto } from "./me.mapper.js";
 import { PanelScoped, SESSION_SECURITY } from "./panel-scoped.decorator.js";
@@ -34,17 +38,22 @@ export class AuthController {
 	constructor(
 		private readonly auth: AuthService,
 		private readonly sessions: SessionService,
+		private readonly attempts: LoginAttempts,
 	) {}
 
 	/**
 	 * Signs in to the admin panel and starts a session (cookie) in the user's
 	 * first active store. Wrong credentials and users without an active store
-	 * get the same 401.
+	 * get the same 401. After 5 failures for an e-mail, or 30 from an address,
+	 * sign-in is refused for up to 15 minutes (429 with Retry-After).
 	 */
 	@Post("login")
 	@HttpCode(200)
 	@ApiBadRequestResponse({ description: "E-mail or password missing." })
 	@ApiUnauthorizedResponse({ description: "Invalid credentials." })
+	@ApiTooManyRequestsResponse({
+		description: "Too many failed attempts; see the Retry-After header.",
+	})
 	async login(
 		@Body() body: LoginDto,
 		@Req() request: FastifyRequest,
@@ -54,10 +63,22 @@ export class AuthController {
 		if (typeof email !== "string" || typeof password !== "string") {
 			throw new BadRequestException("email and password are required");
 		}
+		// ponytail: request.ip is the direct peer. Behind a proxy, enable
+		// Fastify's trustProxy, or every client shares the proxy's address limit.
+		const retryAfter = await this.attempts.retryAfter(email, request.ip);
+		if (retryAfter > 0) {
+			reply.header("retry-after", String(retryAfter));
+			throw new HttpException(
+				"Too many sign-in attempts",
+				HttpStatus.TOO_MANY_REQUESTS,
+			);
+		}
 		const found = await this.auth.authenticate(email, password);
 		if (!found) {
+			await this.attempts.recordFailure(email, request.ip);
 			throw new UnauthorizedException();
 		}
+		await this.attempts.reset(email);
 		const [active] = found.memberships;
 		// A session already on this browser ends; the new one has a new token.
 		await this.sessions.destroy(request, reply);

@@ -20,11 +20,17 @@ describe("Admin panel sign-in (e2e)", () => {
 	let ana: TestUser;
 	let withoutStore: TestUser;
 
-	const login = (payload: unknown) =>
+	// Failed sign-ins are counted per IP in Valkey for 15 minutes, across
+	// runs: each run and each limit test signs in from its own address.
+	const randomIp = () =>
+		`10.${[1, 2, 3].map(() => Math.floor(Math.random() * 255)).join(".")}`;
+	const ip = randomIp();
+	const login = (payload: unknown, remoteAddress = ip) =>
 		app.inject({
 			method: "POST",
 			url: "/auth/login",
 			payload: payload as object,
+			remoteAddress,
 		});
 	/** Signs in and returns the session cookie. */
 	const signIn = async (user: TestUser) => {
@@ -164,6 +170,60 @@ describe("Admin panel sign-in (e2e)", () => {
 			["a number as password", { email: "a@b.com", password: 1 }],
 		])("answers 400 to %s", async (_case, payload) => {
 			expect((await login(payload)).statusCode).toBe(400);
+		});
+	});
+
+	describe("sign-in attempt limits", () => {
+		const wrong = (user: TestUser, from: string) =>
+			login({ email: user.email, password: "wrong password" }, from);
+		const right = (user: TestUser, from: string) =>
+			login({ email: user.email, password: user.password }, from);
+
+		it("blocks an e-mail for a while after 5 failures, even with the right password", async () => {
+			const target = await fixtures.user();
+			await fixtures.member(first, target, "staff");
+			const from = randomIp();
+			for (let attempt = 0; attempt < 5; attempt++) {
+				expect((await wrong(target, from)).statusCode).toBe(401);
+			}
+
+			// From any address: the limit follows the e-mail.
+			const blocked = await right(target, randomIp());
+			expect(blocked.statusCode).toBe(429);
+			const retryAfter = Number(blocked.headers["retry-after"]);
+			expect(retryAfter).toBeGreaterThan(0);
+			expect(retryAfter).toBeLessThanOrEqual(15 * 60);
+			// Other users from the same address are not affected.
+			expect((await right(ana, from)).statusCode).toBe(200);
+		});
+
+		it("starts the e-mail count over after a successful sign-in", async () => {
+			const target = await fixtures.user();
+			await fixtures.member(first, target, "staff");
+			const from = randomIp();
+			for (const round of [1, 2]) {
+				for (let attempt = 0; attempt < 4; attempt++) {
+					await wrong(target, from);
+				}
+				expect(
+					(await right(target, from)).statusCode,
+					`round ${round}`,
+				).toBe(200);
+			}
+		});
+
+		it("blocks an address after 30 failures, whatever the e-mails", async () => {
+			const from = randomIp();
+			for (let attempt = 0; attempt < 30; attempt++) {
+				const response = await login(
+					{ email: `nobody-${attempt}@feitio.test`, password: "x" },
+					from,
+				);
+				expect(response.statusCode).toBe(401);
+			}
+
+			expect((await right(ana, from)).statusCode).toBe(429);
+			expect((await right(ana, randomIp())).statusCode).toBe(200);
 		});
 	});
 

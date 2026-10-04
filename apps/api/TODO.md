@@ -52,7 +52,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 - [x] Login, logout e encerramento de todas as sessões
 - [x] Troca de loja ativa para usuário com mais de um vínculo
 - [x] Rota de dados do usuário logado
-- [ ] Limite de tentativas de login
+- [x] Limite de tentativas de login
 - [x] Guards de sessão e de papel
 - [ ] Edição das configurações da loja pelo dono
 - [ ] Comando para criar loja com o primeiro usuário dono
