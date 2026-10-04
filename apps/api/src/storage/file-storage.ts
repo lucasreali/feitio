@@ -12,10 +12,9 @@ export interface UploadFileInput {
 	visibility: FileVisibility;
 	/** Folder such as `products` or `invoices`: lowercase letters, digits and dashes. */
 	category: string;
-	/** Original file name. Only its extension is kept. */
-	fileName: string;
 	body: Uint8Array | string;
-	contentType?: string;
+	/** Must be one of the types the bucket accepts; it also sets the file extension. */
+	contentType: string;
 }
 
 /**
@@ -31,7 +30,7 @@ export abstract class FileStorage {
 	/** Permanent address of a file in the public bucket. */
 	abstract publicUrl(key: string): string;
 
-	/** Temporary address of a file in the private bucket. */
+	/** Temporary address of a file in the private bucket. It always downloads the file. */
 	abstract temporaryUrl(
 		key: string,
 		expiresInSeconds?: number,

@@ -13,6 +13,7 @@ import {
 	type StoredFile,
 	type UploadFileInput,
 } from "./file-storage.js";
+import { resolveFileType } from "./file-types.js";
 import { assertObjectKey, buildObjectKey, tenantPrefix } from "./object-key.js";
 
 export interface S3FileStorageConfig {
@@ -47,17 +48,17 @@ export class S3FileStorage extends FileStorage {
 	}
 
 	async upload(input: UploadFileInput): Promise<StoredFile> {
-		const key = buildObjectKey(
-			input.tenantId,
-			input.category,
-			input.fileName,
+		const { contentType, extension } = resolveFileType(
+			input.visibility,
+			input.contentType,
 		);
+		const key = buildObjectKey(input.tenantId, input.category, extension);
 		await this.client.send(
 			new PutObjectCommand({
 				Bucket: this.bucket(input.visibility),
 				Key: key,
 				Body: input.body,
-				ContentType: input.contentType,
+				ContentType: contentType,
 			}),
 		);
 		return { visibility: input.visibility, key };
@@ -88,6 +89,8 @@ export class S3FileStorage extends FileStorage {
 			new GetObjectCommand({
 				Bucket: this.config.privateBucket,
 				Key: key,
+				// Never render private files in the browser: documents such as XML can run scripts.
+				ResponseContentDisposition: "attachment",
 			}),
 			{ expiresIn: expiresInSeconds },
 		);
