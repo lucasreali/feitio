@@ -78,6 +78,9 @@ const nextPosition = async (
 	return next;
 };
 
+/** A collection as the repository reads it: the DTO, with a typed id. */
+export type CollectionView = Omit<CollectionDto, "id"> & { id: CollectionId };
+
 /** The current tenant's collections. */
 @Injectable()
 export class CollectionsRepository {
@@ -96,11 +99,11 @@ export class CollectionsRepository {
 		);
 	}
 
-	find(id: CollectionId): Promise<CollectionDto | undefined> {
+	find(id: CollectionId): Promise<CollectionView | undefined> {
 		return this.detail(eq(collections.id, id));
 	}
 
-	findBySlug(slug: Slug): Promise<CollectionDto | undefined> {
+	findBySlug(slug: Slug): Promise<CollectionView | undefined> {
 		return this.detail(eq(collections.slug, slug));
 	}
 
@@ -288,7 +291,7 @@ export class CollectionsRepository {
 		}
 	}
 
-	private async detail(where: SQL): Promise<CollectionDto | undefined> {
+	private async detail(where: SQL): Promise<CollectionView | undefined> {
 		return this.tenantDb.run(async (tx) => {
 			const [collection] = await tx
 				.select({

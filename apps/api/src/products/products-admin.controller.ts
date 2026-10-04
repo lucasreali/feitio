@@ -67,6 +67,7 @@ export class ProductsAdminController {
 		}
 		const { items, total } = await this.list.find({
 			status: query.status as ProductStatus | undefined,
+			sort: "newest",
 			page,
 		});
 		return { items, page: page.page, pageSize: page.pageSize, total };

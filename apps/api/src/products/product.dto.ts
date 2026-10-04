@@ -62,6 +62,14 @@ export class ProductCardDto {
 	image: ProductImageDto | null;
 }
 
+export class ProductPageDto {
+	items: ProductCardDto[];
+	page: number;
+	pageSize: number;
+	/** Products in every page. */
+	total: number;
+}
+
 export class AdminProductCardDto extends ProductCardDto {
 	status: ProductStatus;
 }
