@@ -65,3 +65,19 @@ export const StockLocationId = entityId("StockLocationId");
 /** Id of a recorded change to a variant's stock. */
 export type StockMovementId = Brand<string, "StockMovementId">;
 export const StockMovementId = entityId("StockMovementId");
+
+/** Id of a customer of a store: a guest or a registered buyer. */
+export type CustomerId = Brand<string, "CustomerId">;
+export const CustomerId = entityId("CustomerId");
+
+/** Id of an address in a customer's address book. */
+export type CustomerAddressId = Brand<string, "CustomerAddressId">;
+export const CustomerAddressId = entityId("CustomerAddressId");
+
+/** Id of a group of customers, for promotions and prices. */
+export type CustomerGroupId = Brand<string, "CustomerGroupId">;
+export const CustomerGroupId = entityId("CustomerGroupId");
+
+/** Id of an entry of a customer's history. */
+export type CustomerEventId = Brand<string, "CustomerEventId">;
+export const CustomerEventId = entityId("CustomerEventId");

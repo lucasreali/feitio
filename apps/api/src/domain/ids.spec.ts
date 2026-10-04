@@ -1,6 +1,10 @@
 import {
 	AssetId,
 	CollectionId,
+	CustomerAddressId,
+	CustomerEventId,
+	CustomerGroupId,
+	CustomerId,
 	FacetId,
 	FacetValueId,
 	MembershipId,
@@ -33,6 +37,10 @@ describe.each([
 	["CollectionId", CollectionId],
 	["StockLocationId", StockLocationId],
 	["StockMovementId", StockMovementId],
+	["CustomerId", CustomerId],
+	["CustomerAddressId", CustomerAddressId],
+	["CustomerGroupId", CustomerGroupId],
+	["CustomerEventId", CustomerEventId],
 ])("%s", (name, Id) => {
 	it("accepts a UUID v7 and keeps it as the same string", () => {
 		expect(Id.parse(uuid)).toBe(uuid);

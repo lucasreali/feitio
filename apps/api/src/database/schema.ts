@@ -2,6 +2,11 @@ import { assets } from "./schemas/assets.js";
 import { collectionFacetValues } from "./schemas/collection-facet-values.js";
 import { collectionProducts } from "./schemas/collection-products.js";
 import { collections } from "./schemas/collections.js";
+import { customerAddresses } from "./schemas/customer-addresses.js";
+import { customerEvents } from "./schemas/customer-events.js";
+import { customerGroupMembers } from "./schemas/customer-group-members.js";
+import { customerGroups } from "./schemas/customer-groups.js";
+import { customers } from "./schemas/customers.js";
 import { facetValues } from "./schemas/facet-values.js";
 import { facets } from "./schemas/facets.js";
 import { memberships } from "./schemas/memberships.js";
@@ -41,4 +46,9 @@ export const schemas = {
 	stockLocations,
 	stockLevels,
 	stockMovements,
+	customers,
+	customerAddresses,
+	customerGroups,
+	customerGroupMembers,
+	customerEvents,
 };
