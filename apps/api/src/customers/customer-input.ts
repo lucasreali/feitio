@@ -130,3 +130,54 @@ export function parseNewAddress(body: unknown): NewAddress {
 export function parseAddressChanges(body: unknown): AddressChanges {
 	return changes(body, addressParsers);
 }
+
+const PASSWORD_MIN = 8;
+// scrypt hashes whatever it gets; a cap keeps one request cheap.
+const PASSWORD_MAX = 128;
+
+/** A new password, kept exactly as typed. */
+const password = (field: string) => (value: unknown) =>
+	typeof value === "string" &&
+	value.length >= PASSWORD_MIN &&
+	value.length <= PASSWORD_MAX
+		? value
+		: invalid(
+				`${field} must have ${PASSWORD_MIN} to ${PASSWORD_MAX} characters`,
+			);
+
+const registrationParsers = {
+	email: domain(Email, "email"),
+	password: password("password"),
+	...profileParsers,
+};
+
+export type Registration = Parsed<typeof registrationParsers>;
+export type ProfileChanges = Partial<Parsed<typeof profileParsers>>;
+
+/** Body of POST /store/account/register. */
+export function parseRegistration(body: unknown): Registration {
+	return complete(body, registrationParsers, { phone: null, taxId: null });
+}
+
+/** Body of PATCH /store/account: the buyer's own name, phone and tax id. */
+export function parseProfileChanges(body: unknown): ProfileChanges {
+	return changes(body, profileParsers);
+}
+
+/** Body of POST /store/account/password. */
+export function parsePasswordChange(body: unknown): {
+	currentPassword: string;
+	newPassword: string;
+} {
+	return complete(
+		body,
+		{
+			currentPassword: (value: unknown) =>
+				typeof value === "string"
+					? value
+					: invalid("currentPassword is required"),
+			newPassword: password("newPassword"),
+		},
+		{},
+	);
+}

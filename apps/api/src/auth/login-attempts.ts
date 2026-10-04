@@ -28,10 +28,11 @@ export class LoginAttempts {
 
 	/**
 	 * Counts an attempt. Returns 0 when it may go ahead, or the seconds until
-	 * the e-mail and address may try again.
+	 * the e-mail and address may try again. `scope` keeps separate counters
+	 * for separate sign-ins (the panel, each store's buyers).
 	 */
-	async attempt(email: string, ip: string): Promise<number> {
-		const keys = loginKeys(email, ip);
+	async attempt(email: string, ip: string, scope = "panel"): Promise<number> {
+		const keys = loginKeys(scope, email, ip);
 		const transaction = this.valkey.multi();
 		for (const counter of COUNTERS) {
 			// NX: the window starts at the first attempt and is not extended.
@@ -53,8 +54,8 @@ export class LoginAttempts {
 	}
 
 	/** A successful sign-in: the pair starts over and the attempt is taken back. */
-	async succeeded(email: string, ip: string): Promise<void> {
-		const keys = loginKeys(email, ip);
+	async succeeded(email: string, ip: string, scope = "panel"): Promise<void> {
+		const keys = loginKeys(scope, email, ip);
 		await this.valkey
 			.multi()
 			.del(keys.pair)
@@ -65,14 +66,18 @@ export class LoginAttempts {
 }
 
 // The e-mail is hashed so Valkey does not hold a list of addresses.
-const loginKeys = (email: string, ip: string): Record<Counter, string> => {
+const loginKeys = (
+	scope: string,
+	email: string,
+	ip: string,
+): Record<Counter, string> => {
 	const hash = createHash("sha256")
 		.update(email.trim().toLowerCase())
 		.digest("hex");
 	const bucket = ipBucket(ip);
 	return {
-		pair: `login-attempts:pair:${hash}:${bucket}`,
-		email: `login-attempts:email:${hash}`,
-		ip: `login-attempts:ip:${bucket}`,
+		pair: `login-attempts:${scope}:pair:${hash}:${bucket}`,
+		email: `login-attempts:${scope}:email:${hash}`,
+		ip: `login-attempts:${scope}:ip:${bucket}`,
 	};
 };

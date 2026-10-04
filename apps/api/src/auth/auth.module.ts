@@ -20,6 +20,6 @@ import { UsersRepository } from "./users.repository.js";
 		MembershipsRepository,
 		PanelGuard,
 	],
-	exports: [SessionModule, MembershipsRepository, PanelGuard],
+	exports: [SessionModule, MembershipsRepository, PanelGuard, LoginAttempts],
 })
 export class AuthModule {}

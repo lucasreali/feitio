@@ -1,4 +1,4 @@
-import { randomBytes, scrypt, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 
 // No local imports here: scripts/create-store.ts loads this file directly
@@ -78,4 +78,16 @@ export async function verifyPassword(
 		// Parameters scrypt refuses (N not a power of two, and so on).
 		return false;
 	}
+}
+
+let decoy: Promise<string> | undefined;
+
+/**
+ * A hash of a random password, to compare against when an e-mail is unknown:
+ * a miss then costs as much as a wrong password, so response times do not
+ * reveal which e-mails exist.
+ */
+export function decoyPasswordHash(): Promise<string> {
+	decoy ??= hashPassword(randomUUID());
+	return decoy;
 }

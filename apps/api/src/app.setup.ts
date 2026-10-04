@@ -5,6 +5,7 @@ import fastifyMultipart from "@fastify/multipart";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { SESSION_SECURITY } from "./auth/panel-scoped.decorator.js";
+import { CUSTOMER_SECURITY } from "./customers/customer-scoped.decorator.js";
 import { csrfHmacKey, csrfSessionBinding } from "./session/csrf.js";
 import { readSessionConfig } from "./session/session.config.js";
 
@@ -57,6 +58,7 @@ export async function configureApp(app: NestFastifyApplication) {
 	});
 	fastify.decorateRequest("authSession", undefined);
 	fastify.decorateRequest("tenant", undefined);
+	fastify.decorateRequest("customerSession", undefined);
 	// Larger files fail with 413 when read (throwFileSizeLimit is on by default).
 	await app.register(fastifyMultipart, {
 		limits: { fileSize: MAX_UPLOAD_BYTES },
@@ -66,6 +68,7 @@ export async function configureApp(app: NestFastifyApplication) {
 		.setTitle("Feitio API")
 		.setVersion("1.0")
 		.addCookieAuth(session.cookieName, { type: "apiKey" }, SESSION_SECURITY)
+		.addBearerAuth({ type: "http", scheme: "bearer" }, CUSTOMER_SECURITY)
 		.build();
 	SwaggerModule.setup(
 		DOCS_PATH.slice(1),

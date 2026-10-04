@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { Email } from "../domain/email.js";
 import type { UserId } from "../domain/ids.js";
@@ -6,7 +5,7 @@ import {
 	type ActiveMembership,
 	MembershipsRepository,
 } from "./memberships.repository.js";
-import { hashPassword, verifyPassword } from "./password.js";
+import { decoyPasswordHash, verifyPassword } from "./password.js";
 import { type User, UsersRepository } from "./users.repository.js";
 
 export interface Authenticated {
@@ -14,14 +13,6 @@ export interface Authenticated {
 	/** At least one. */
 	memberships: ActiveMembership[];
 }
-
-// Compared against when the e-mail is unknown, so a miss costs as much as a
-// wrong password and response times do not reveal which e-mails exist.
-let decoyHash: Promise<string> | undefined;
-const decoy = () => {
-	decoyHash ??= hashPassword(randomUUID());
-	return decoyHash;
-};
 
 @Injectable()
 export class AuthService {
@@ -42,7 +33,7 @@ export class AuthService {
 		const user = address ? await this.users.findByEmail(address) : null;
 		const matches = await verifyPassword(
 			password,
-			user?.passwordHash ?? (await decoy()),
+			user?.passwordHash ?? (await decoyPasswordHash()),
 		);
 		if (!user || !matches) {
 			return null;

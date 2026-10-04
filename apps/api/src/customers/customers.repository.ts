@@ -19,6 +19,7 @@ import { customerAddresses } from "../database/schemas/customer-addresses.js";
 import { customerGroupMembers } from "../database/schemas/customer-group-members.js";
 import { customerGroups } from "../database/schemas/customer-groups.js";
 import { customers } from "../database/schemas/customers.js";
+import type { Email } from "../domain/email.js";
 import type {
 	CustomerAddressId,
 	CustomerGroupId,
@@ -258,6 +259,52 @@ export class CustomersRepository {
 					return true;
 				}),
 			customerConstraints,
+		);
+	}
+
+	/** A registered customer. Throws 409 for an e-mail the store already has, even a guest's. */
+	register(
+		input: Omit<NewCustomer, "groupIds"> & { passwordHash: string },
+	): Promise<CustomerId> {
+		return translateConstraints(
+			() =>
+				this.tenantDb.run(async (tx) => {
+					const [{ id }] = await tx
+						.insert(customers)
+						.values({ ...input, tenantId: TenantContext.id() })
+						.returning({ id: customers.id });
+					return id;
+				}),
+			customerConstraints,
+		);
+	}
+
+	/** Id and password hash (null for guests) of the customer with this e-mail. */
+	async credentials(
+		by: { email: Email } | { id: CustomerId },
+	): Promise<{ id: CustomerId; passwordHash: string | null } | undefined> {
+		const [row] = await this.tenantDb.run((tx) =>
+			tx
+				.select({
+					id: customers.id,
+					passwordHash: customers.passwordHash,
+				})
+				.from(customers)
+				.where(
+					"email" in by
+						? eq(customers.email, by.email)
+						: eq(customers.id, by.id),
+				),
+		);
+		return row;
+	}
+
+	async setPasswordHash(id: CustomerId, passwordHash: string): Promise<void> {
+		await this.tenantDb.run((tx) =>
+			tx
+				.update(customers)
+				.set({ passwordHash })
+				.where(eq(customers.id, id)),
 		);
 	}
 

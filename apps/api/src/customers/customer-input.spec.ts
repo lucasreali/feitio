@@ -4,6 +4,9 @@ import {
 	parseCustomerChanges,
 	parseNewAddress,
 	parseNewCustomer,
+	parsePasswordChange,
+	parseProfileChanges,
+	parseRegistration,
 } from "./customer-input.js";
 
 const address = {
@@ -163,5 +166,88 @@ describe("parseAddressChanges", () => {
 		["a null CEP", { cep: null }],
 	])("refuses %s", (_case, body) => {
 		expect(() => parseAddressChanges(body)).toThrow(BadRequestException);
+	});
+});
+
+describe("parseRegistration", () => {
+	it("takes the e-mail, the password and the profile", () => {
+		expect(
+			parseRegistration({
+				email: "Ana@Example.com",
+				password: "  long enough  ",
+				name: "Ana",
+				phone: "11987654321",
+			}),
+		).toEqual({
+			email: "ana@example.com",
+			password: "  long enough  ",
+			name: "Ana",
+			phone: "+5511987654321",
+			taxId: null,
+		});
+	});
+
+	it.each([
+		["no password", { email: "ana@example.com", name: "Ana" }],
+		[
+			"a password of 7 characters",
+			{ email: "ana@example.com", name: "Ana", password: "1234567" },
+		],
+		[
+			"a password of 129 characters",
+			{
+				email: "ana@example.com",
+				name: "Ana",
+				password: "x".repeat(129),
+			},
+		],
+		[
+			"groups",
+			{
+				email: "ana@example.com",
+				name: "Ana",
+				password: "12345678",
+				groupIds: [],
+			},
+		],
+	])("refuses %s", (_case, body) => {
+		expect(() => parseRegistration(body)).toThrow(BadRequestException);
+	});
+});
+
+describe("parseProfileChanges", () => {
+	it("reads the name, the phone and the tax id", () => {
+		expect(parseProfileChanges({ name: "Ana", taxId: null })).toEqual({
+			name: "Ana",
+			taxId: null,
+		});
+	});
+
+	it.each([
+		["the e-mail", { email: "ana@example.com" }],
+		["groups", { groupIds: [] }],
+	])("refuses %s", (_case, body) => {
+		expect(() => parseProfileChanges(body)).toThrow(BadRequestException);
+	});
+});
+
+describe("parsePasswordChange", () => {
+	it("takes the current and the new password", () => {
+		expect(
+			parsePasswordChange({
+				currentPassword: "old",
+				newPassword: "new password",
+			}),
+		).toEqual({ currentPassword: "old", newPassword: "new password" });
+	});
+
+	it.each([
+		["no current password", { newPassword: "new password" }],
+		[
+			"a short new password",
+			{ currentPassword: "old", newPassword: "short" },
+		],
+	])("refuses %s", (_case, body) => {
+		expect(() => parsePasswordChange(body)).toThrow(BadRequestException);
 	});
 });
