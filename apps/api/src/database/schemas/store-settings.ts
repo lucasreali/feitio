@@ -1,4 +1,5 @@
 import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import type { TenantId } from "../../domain/ids.js";
 import { tenantIsolation } from "../tenant-isolation.js";
 import { tenants } from "./tenants.js";
 
@@ -26,9 +27,13 @@ export const storeSettings = pgTable(
 	"store_settings",
 	{
 		tenantId: uuid("tenant_id")
+			.$type<TenantId>()
 			.primaryKey()
 			.references(() => tenants.id, { onDelete: "cascade" }),
 		displayName: text("display_name").notNull(),
+		// Domain types: the logo URL and the theme's CSS values stay plain strings
+		// for now. Nothing writes them through the API yet; wrap them together
+		// with their validation when the first write route appears.
 		logoUrl: text("logo_url"),
 		theme: jsonb("theme").$type<StoreTheme>().notNull().default({}),
 		createdAt: timestamp("created_at", { withTimezone: true })

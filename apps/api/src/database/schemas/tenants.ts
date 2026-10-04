@@ -7,6 +7,8 @@ import {
 	timestamp,
 	uuid,
 } from "drizzle-orm/pg-core";
+import type { TenantId } from "../../domain/ids.js";
+import type { TenantSlug } from "../../domain/tenant-slug.js";
 import { appRole } from "../roles.js";
 
 export const tenantStatus = pgEnum("tenant_status", ["active", "inactive"]);
@@ -15,10 +17,14 @@ export const tenantStatus = pgEnum("tenant_status", ["active", "inactive"]);
 export const tenants = pgTable(
 	"tenants",
 	{
-		id: uuid("id").primaryKey().defaultRandom(),
+		id: uuid("id")
+			.primaryKey()
+			// UUID v7 (time-ordered), from the function created in migration 0005.
+			.default(sql`uuid_generate_v7()`)
+			.$type<TenantId>(),
 		name: text("name").notNull(),
 		/** Short unique identifier used in URLs. */
-		slug: text("slug").notNull().unique(),
+		slug: text("slug").notNull().unique().$type<TenantSlug>(),
 		status: tenantStatus("status").notNull().default("active"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()

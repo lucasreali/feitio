@@ -1,9 +1,11 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import type { TenantId } from "../domain/ids.js";
+import type { TenantSlug } from "../domain/tenant-slug.js";
 
 /** The tenant a request belongs to. */
 export interface CurrentTenant {
-	id: string;
-	slug: string;
+	id: TenantId;
+	slug: TenantSlug;
 }
 
 const storage = new AsyncLocalStorage<CurrentTenant>();

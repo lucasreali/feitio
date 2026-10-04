@@ -7,6 +7,7 @@ import {
 	S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import type { TenantId } from "../domain/ids.js";
 import {
 	FileStorage,
 	type FileVisibility,
@@ -14,7 +15,7 @@ import {
 	type UploadFileInput,
 } from "./file-storage.js";
 import { resolveFileType } from "./file-types.js";
-import { assertObjectKey, buildObjectKey, tenantPrefix } from "./object-key.js";
+import { buildObjectKey, ObjectKey, tenantPrefix } from "./object-key.js";
 
 export interface S3FileStorageConfig {
 	endpoint: string;
@@ -29,7 +30,7 @@ export interface S3FileStorageConfig {
 
 const DEFAULT_TEMPORARY_URL_SECONDS = 15 * 60;
 
-/** The S3 client for any S3-compatible service (AWS S3, Supabase Storage, RustFS...). */
+/** The S3 client for any S3-compatible service. */
 export function createS3Client(config: S3FileStorageConfig): S3Client {
 	return new S3Client({
 		endpoint: config.endpoint,
@@ -73,7 +74,8 @@ export class S3FileStorage extends FileStorage {
 	}
 
 	async remove(file: StoredFile) {
-		assertObjectKey(file.key);
+		// Keys come back from the database: a cast value must not become a path.
+		ObjectKey.parse(file.key);
 		await this.client.send(
 			new DeleteObjectCommand({
 				Bucket: this.bucket(file.visibility),
@@ -82,16 +84,16 @@ export class S3FileStorage extends FileStorage {
 		);
 	}
 
-	publicUrl(key: string) {
-		assertObjectKey(key);
+	publicUrl(key: ObjectKey) {
+		ObjectKey.parse(key);
 		return `${this.config.publicUrl.replace(/\/+$/, "")}/${key}`;
 	}
 
 	async temporaryUrl(
-		key: string,
+		key: ObjectKey,
 		expiresInSeconds = DEFAULT_TEMPORARY_URL_SECONDS,
 	) {
-		assertObjectKey(key);
+		ObjectKey.parse(key);
 		return getSignedUrl(
 			this.client,
 			new GetObjectCommand({
@@ -104,7 +106,7 @@ export class S3FileStorage extends FileStorage {
 		);
 	}
 
-	async removeTenantFiles(tenantId: string) {
+	async removeTenantFiles(tenantId: TenantId) {
 		const prefix = tenantPrefix(tenantId);
 		for (const bucket of [
 			this.config.publicBucket,

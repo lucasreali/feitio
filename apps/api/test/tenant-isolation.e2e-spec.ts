@@ -4,6 +4,8 @@ import pg from "pg";
 import { DATABASE, type Database } from "../src/database/database.js";
 import { DatabaseModule } from "../src/database/database.module.js";
 import { storeSettings } from "../src/database/schemas/store-settings.js";
+import { TenantId } from "../src/domain/ids.js";
+import { TenantSlug } from "../src/domain/tenant-slug.js";
 import { TenancyModule } from "../src/tenancy/tenancy.module.js";
 import {
 	type CurrentTenant,
@@ -18,8 +20,12 @@ describe("Tenant isolation (e2e)", () => {
 	let appDb: Database;
 	let owner: pg.Client;
 	let app: pg.Client;
-	const tenantA: CurrentTenant = { id: crypto.randomUUID(), slug: "" };
-	const tenantB: CurrentTenant = { id: crypto.randomUUID(), slug: "" };
+	const newTenant = (): CurrentTenant => {
+		const id = TenantId.generate();
+		return { id, slug: TenantSlug.parse(`test-${id.slice(-12)}`) };
+	};
+	const tenantA = newTenant();
+	const tenantB = newTenant();
 
 	const inTenant = <T>(tenant: CurrentTenant, fn: () => Promise<T>) =>
 		TenantContext.run(tenant, fn);
@@ -43,7 +49,6 @@ describe("Tenant isolation (e2e)", () => {
 
 		// Tenants are managed by the owner; settings go in through the app role.
 		for (const tenant of [tenantA, tenantB]) {
-			tenant.slug = `test-${tenant.id.slice(0, 8)}`;
 			await owner.query(
 				"insert into tenants (id, name, slug) values ($1, $2, $3)",
 				[tenant.id, `Test ${tenant.slug}`, tenant.slug],
@@ -92,7 +97,7 @@ describe("Tenant isolation (e2e)", () => {
 			inTenant(tenantA, () =>
 				tenantDb.run((tx) =>
 					tx.insert(storeSettings).values({
-						tenantId: crypto.randomUUID(),
+						tenantId: TenantId.generate(),
 						displayName: "x",
 					}),
 				),

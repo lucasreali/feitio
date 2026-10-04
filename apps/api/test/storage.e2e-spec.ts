@@ -1,12 +1,13 @@
 import { Test } from "@nestjs/testing";
+import { TenantId } from "../src/domain/ids.js";
 import { FileStorage } from "../src/storage/file-storage.js";
 import { StorageModule } from "../src/storage/storage.module.js";
 
 // Runs against the real storage configured in .env, under a random tenant it deletes.
 describe("FileStorage (e2e)", () => {
 	let storage: FileStorage;
-	const tenantId = crypto.randomUUID();
-	const otherTenantId = crypto.randomUUID();
+	const tenantId = TenantId.generate();
+	const otherTenantId = TenantId.generate();
 
 	// Public files may sit behind a CDN that keeps serving a removed file from
 	// its cache for a while; a unique query string skips that cache.
@@ -77,7 +78,7 @@ describe("FileStorage (e2e)", () => {
 	});
 
 	it("removes every file of a tenant from both buckets", async () => {
-		const upload = (owner: string, visibility: "public" | "private") =>
+		const upload = (owner: TenantId, visibility: "public" | "private") =>
 			storage.upload({
 				tenantId: owner,
 				visibility,

@@ -3,10 +3,18 @@ import {
 	ListObjectsV2Command,
 	type S3Client,
 } from "@aws-sdk/client-s3";
+import { TenantId } from "../domain/ids.js";
+import { ObjectKey } from "./object-key.js";
 import { createS3Client, S3FileStorage } from "./s3-file-storage.js";
 
-const tenantId = "0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21";
-const key = `tenants/${tenantId}/invoices/0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b22.pdf`;
+const tenantId = TenantId.generate();
+const fileName = "0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b22";
+const key = ObjectKey.parse(`tenants/${tenantId}/invoices/${fileName}.pdf`);
+const imageKey = ObjectKey.parse(
+	`tenants/${tenantId}/products/${fileName}.png`,
+);
+// Values forced into the types, as a cast or a corrupted database row would.
+const forcedKey = (value: string) => value as ObjectKey;
 
 // Port 1 refuses connections: a test that reached the network would fail
 // with a connection error instead of the validation error it expects.
@@ -41,19 +49,20 @@ describe("S3FileStorage (no network)", () => {
 		[
 			"remove",
 			(s: S3FileStorage) =>
-				s.remove({ visibility: "public", key: "../x.png" }),
+				s.remove({ visibility: "public", key: forcedKey("../x.png") }),
 		],
 		[
 			"publicUrl",
-			async (s: S3FileStorage) => s.publicUrl("tenants/x/products/a.png"),
+			async (s: S3FileStorage) =>
+				s.publicUrl(forcedKey("tenants/x/products/a.png")),
 		],
 		[
 			"temporaryUrl",
-			(s: S3FileStorage) => s.temporaryUrl("other/path.pdf"),
+			(s: S3FileStorage) => s.temporaryUrl(forcedKey("other/path.pdf")),
 		],
 		[
 			"removeTenantFiles",
-			(s: S3FileStorage) => s.removeTenantFiles("../other"),
+			(s: S3FileStorage) => s.removeTenantFiles("../other" as TenantId),
 		],
 	])(
 		"%s refuses keys and tenant ids it did not build",
@@ -64,12 +73,8 @@ describe("S3FileStorage (no network)", () => {
 
 	it("builds public URLs from the base address, ignoring trailing slashes", () => {
 		expect(
-			storage("https://files.example.com/public//").publicUrl(
-				key.replace(".pdf", ".png"),
-			),
-		).toBe(
-			`https://files.example.com/public/${key.replace(".pdf", ".png")}`,
-		);
+			storage("https://files.example.com/public//").publicUrl(imageKey),
+		).toBe(`https://files.example.com/public/${imageKey}`);
 	});
 
 	it("signs temporary links to the private bucket that force download", async () => {

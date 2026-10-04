@@ -1,6 +1,9 @@
-import { assertObjectKey, buildObjectKey, tenantPrefix } from "./object-key.js";
+import { TenantId } from "../domain/ids.js";
+import { buildObjectKey, ObjectKey, tenantPrefix } from "./object-key.js";
 
-const tenantId = "0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21";
+const tenantId = TenantId.generate();
+// A value forced into the type, as a cast or a corrupted database row would.
+const forcedTenant = (value: string) => value as TenantId;
 
 describe("buildObjectKey", () => {
 	it("builds tenants/{tenant}/{category}/{random id}{extension}", () => {
@@ -8,7 +11,7 @@ describe("buildObjectKey", () => {
 		expect(key).toMatch(
 			new RegExp(`^tenants/${tenantId}/products/[0-9a-f-]{36}\\.png$`),
 		);
-		expect(() => assertObjectKey(key)).not.toThrow();
+		expect(ObjectKey.parse(key)).toBe(key);
 	});
 
 	it("generates a new name on every call", () => {
@@ -18,7 +21,12 @@ describe("buildObjectKey", () => {
 	});
 
 	it.each([
-		["../other-tenant", "products", ".png"],
+		[forcedTenant("../other-tenant"), "products", ".png"],
+		[
+			forcedTenant("0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21"),
+			"products",
+			".png",
+		],
 		[tenantId, "../invoices", ".png"],
 		[tenantId, "Products", ".png"],
 		[tenantId, "products/x", ".png"],
@@ -35,21 +43,23 @@ describe("buildObjectKey", () => {
 });
 
 describe("tenantPrefix", () => {
-	it("rejects anything that is not a tenant id", () => {
+	it("refuses anything that is not a tenant id, even when forced into the type", () => {
 		expect(tenantPrefix(tenantId)).toBe(`tenants/${tenantId}/`);
-		expect(() => tenantPrefix("")).toThrow();
-		expect(() => tenantPrefix("../..")).toThrow();
+		expect(() => tenantPrefix(forcedTenant(""))).toThrow();
+		expect(() => tenantPrefix(forcedTenant("../.."))).toThrow();
 	});
 });
 
-describe("assertObjectKey", () => {
+describe("ObjectKey", () => {
 	it.each([
 		"tenants/x/products/a.png",
 		`tenants/${tenantId}/products/../../secret.pdf`,
 		`tenants/${tenantId}/products/my-file.png`,
 		`tenants/${tenantId}/products/0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21`,
+		"tenants/0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21/products/0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b22.png",
 		"other/path.png",
 	])("rejects %s", (key) => {
-		expect(() => assertObjectKey(key)).toThrow();
+		expect(() => ObjectKey.parse(key)).toThrow("Invalid ObjectKey");
+		expect(ObjectKey.tryParse(key)).toBeNull();
 	});
 });

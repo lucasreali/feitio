@@ -3,11 +3,16 @@ import {
 	type ExecutionContext,
 	NotFoundException,
 } from "@nestjs/common";
+import { TenantId } from "../domain/ids.js";
+import { TenantSlug } from "../domain/tenant-slug.js";
 import { TenantGuard } from "./tenant.guard.js";
 import type { CurrentTenant } from "./tenant-context.js";
 import type { TenantResolver } from "./tenant-resolver.js";
 
-const active: CurrentTenant = { id: crypto.randomUUID(), slug: "loja-aurora" };
+const active: CurrentTenant = {
+	id: TenantId.generate(),
+	slug: TenantSlug.parse("loja-aurora"),
+};
 
 const guardFor = (known: CurrentTenant | null) =>
 	new TenantGuard({

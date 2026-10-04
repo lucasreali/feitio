@@ -10,6 +10,8 @@ import {
 	type StoreTheme,
 	storeSettings,
 } from "../src/database/schemas/store-settings.js";
+import { TenantId } from "../src/domain/ids.js";
+import { TenantSlug } from "../src/domain/tenant-slug.js";
 import { TenantContext } from "../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../src/tenancy/tenant-database.js";
 
@@ -19,8 +21,8 @@ describe("GET /store/settings (e2e)", () => {
 	let owner: pg.Client;
 
 	const tenant = (status: "active" | "inactive", theme: StoreTheme) => {
-		const id = crypto.randomUUID();
-		const slug = `test-${id.slice(0, 8)}`;
+		const id = TenantId.generate();
+		const slug = TenantSlug.parse(`test-${id.slice(-12)}`);
 		return { id, slug, status, displayName: `Store ${slug}`, theme };
 	};
 	const tenantA = tenant("active", { primary: "#1e3b32", radius: "0.5rem" });

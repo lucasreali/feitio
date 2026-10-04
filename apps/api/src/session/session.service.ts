@@ -2,21 +2,23 @@ import { createHash, randomBytes } from "node:crypto";
 import type { CookieSerializeOptions } from "@fastify/cookie";
 import { Inject, Injectable } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import type { Brand } from "../domain/brand.js";
+import type { TenantId, UserId } from "../domain/ids.js";
 import { Valkey } from "../valkey/valkey.js";
 import { SESSION_CONFIG, type SessionConfig } from "./session.config.js";
 
 /** What a session stores. The cookie only carries a random token. */
 export interface Session {
-	userId: string;
-	tenantId: string;
+	userId: UserId;
+	tenantId: TenantId;
 	/** ISO 8601 timestamps. */
 	createdAt: string;
 	lastUsedAt: string;
 }
 
 export interface NewSession {
-	userId: string;
-	tenantId: string;
+	userId: UserId;
+	tenantId: TenantId;
 }
 
 declare module "fastify" {
@@ -44,7 +46,7 @@ export class SessionService {
 
 	/** Starts a session and sets its cookie on the reply. */
 	async create(reply: FastifyReply, owner: NewSession): Promise<Session> {
-		const token = randomBytes(32).toString("base64url");
+		const token = randomBytes(32).toString("base64url") as SessionToken;
 		const now = new Date().toISOString();
 		const session: Session = { ...owner, createdAt: now, lastUsedAt: now };
 		await this.save(hashToken(token), session);
@@ -106,20 +108,21 @@ export class SessionService {
 	}
 
 	/** Ends every session of a user. Returns how many were still active. */
-	async destroyAllForUser(userId: string): Promise<number> {
+	async destroyAllForUser(userId: UserId): Promise<number> {
 		const hashes = await this.valkey.smembers(userSessionsKey(userId));
 		if (hashes.length === 0) {
 			return 0;
 		}
 		const [[, deleted]] = (await this.valkey
 			.multi()
-			.del(...hashes.map(sessionKey))
+			// The index only holds ids written by save().
+			.del(...hashes.map((hash) => sessionKey(hash as SessionId)))
 			.del(userSessionsKey(userId))
 			.exec()) as [[Error | null, number], unknown];
 		return deleted;
 	}
 
-	private async save(hash: string, session: Session) {
+	private async save(hash: SessionId, session: Session) {
 		const ttl = this.config.ttlSeconds;
 		// The user index lives as long as the user's most recently used session.
 		await this.valkey
@@ -130,16 +133,18 @@ export class SessionService {
 			.exec();
 	}
 
-	private tokenFromCookie(request: FastifyRequest): string | null {
+	private tokenFromCookie(request: FastifyRequest): SessionToken | null {
 		const signed = request.cookies[this.config.cookieName];
 		if (!signed) {
 			return null;
 		}
 		const { valid, value } = request.unsignCookie(signed);
-		return valid && value ? value : null;
+		// Any correctly signed value is looked up by its hash; an unknown one
+		// simply finds no session.
+		return valid && value ? (value as SessionToken) : null;
 	}
 
-	private setCookie(reply: FastifyReply, token: string) {
+	private setCookie(reply: FastifyReply, token: SessionToken) {
 		reply.setCookie(this.config.cookieName, token, {
 			...this.cookieScope(),
 			httpOnly: true,
@@ -155,7 +160,13 @@ export class SessionService {
 	}
 }
 
-const hashToken = (token: string) =>
-	createHash("sha256").update(token).digest("hex");
-const sessionKey = (hash: string) => `session:${hash}`;
-const userSessionsKey = (userId: string) => `user-sessions:${userId}`;
+/** The random token in the cookie. Secret: never stored or logged. */
+type SessionToken = Brand<string, "SessionToken">;
+
+/** A session's id in Valkey: the SHA-256 of its token. */
+type SessionId = Brand<string, "SessionId">;
+
+const hashToken = (token: SessionToken) =>
+	createHash("sha256").update(token).digest("hex") as SessionId;
+const sessionKey = (id: SessionId) => `session:${id}`;
+const userSessionsKey = (userId: UserId) => `user-sessions:${userId}`;

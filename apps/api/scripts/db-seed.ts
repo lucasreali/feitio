@@ -13,6 +13,9 @@ if (existsSync(".env")) {
 	process.loadEnvFile();
 }
 
+// Scripts run as .ts files straight under Node, which cannot load src/ (its
+// imports name the .js files the build emits), so they keep this small copy
+// of src/config/env.ts instead of importing requireEnv.
 const env = (name: string) => {
 	const value = process.env[name];
 	if (!value) {

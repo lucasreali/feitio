@@ -36,6 +36,20 @@
       "when": 1791115416311,
       "tag": "0004_store_settings_access",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791119628838,
+      "tag": "0005_uuid_v7_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791119629383,
+      "tag": "0006_tenant_ids_default_v7",
+      "breakpoints": true
     }
   ]
 }

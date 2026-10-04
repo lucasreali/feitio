@@ -15,6 +15,7 @@ import {
 import { Test } from "@nestjs/testing";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { configureApp } from "../src/app.setup.js";
+import { TenantId, UserId } from "../src/domain/ids.js";
 import { CurrentSession } from "../src/session/current-session.decorator.js";
 import {
 	readSessionConfig,
@@ -38,10 +39,14 @@ class TestSessionController {
 
 	@Post("start")
 	async start(
-		@Body() owner: NewSession,
+		@Body() body: { userId: string; tenantId: string },
 		@Res({ passthrough: true }) reply: FastifyReply,
 	) {
-		await this.sessions.create(reply, owner);
+		// Routes take primitives; the domain types start here.
+		await this.sessions.create(reply, {
+			userId: UserId.parse(body.userId),
+			tenantId: TenantId.parse(body.tenantId),
+		});
 		return { ok: true };
 	}
 
@@ -81,7 +86,7 @@ describe("Sessions (e2e)", () => {
 		ttlSeconds: TTL_SECONDS,
 		secure: true,
 	};
-	const users: string[] = [];
+	const users: UserId[] = [];
 
 	const start = async (owner = newOwner()) => {
 		const response = await app.inject({
@@ -104,9 +109,9 @@ describe("Sessions (e2e)", () => {
 			url: "/test-session/me",
 			cookies: cookieValue ? { [config.cookieName]: cookieValue } : {},
 		});
-	function newOwner(userId = crypto.randomUUID()): NewSession {
+	function newOwner(userId = UserId.generate()): NewSession {
 		users.push(userId);
-		return { userId, tenantId: crypto.randomUUID() };
+		return { userId, tenantId: TenantId.generate() };
 	}
 
 	beforeAll(async () => {
@@ -189,7 +194,7 @@ describe("Sessions (e2e)", () => {
 	});
 
 	it("ends every session of a user and keeps other users' sessions", async () => {
-		const userId = crypto.randomUUID();
+		const userId = UserId.generate();
 		const first = await start(newOwner(userId));
 		const second = await start(newOwner(userId));
 		const otherUser = await start();

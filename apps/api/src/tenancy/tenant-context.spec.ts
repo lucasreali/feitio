@@ -1,7 +1,15 @@
+import { TenantId } from "../domain/ids.js";
+import { TenantSlug } from "../domain/tenant-slug.js";
 import { TenantContext } from "./tenant-context.js";
 
-const tenantA = { id: "00000000-0000-4000-8000-00000000000a", slug: "a" };
-const tenantB = { id: "00000000-0000-4000-8000-00000000000b", slug: "b" };
+const tenantA = {
+	id: TenantId.generate(),
+	slug: TenantSlug.parse("a"),
+};
+const tenantB = {
+	id: TenantId.generate(),
+	slug: TenantSlug.parse("b"),
+};
 
 describe("TenantContext", () => {
 	it("has no tenant outside a run", () => {
