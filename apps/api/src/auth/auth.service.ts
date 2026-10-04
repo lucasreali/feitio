@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 import { Email } from "../domain/email.js";
+import type { UserId } from "../domain/ids.js";
 import {
 	type ActiveMembership,
 	MembershipsRepository,
@@ -50,5 +51,14 @@ export class AuthService {
 		}
 		const memberships = await this.memberships.listActive(user.id);
 		return memberships.length > 0 ? { user, memberships } : null;
+	}
+
+	/** A signed-in user with their active stores, or null if the user is gone. */
+	async load(userId: UserId): Promise<Authenticated | null> {
+		const [user, memberships] = await Promise.all([
+			this.users.findById(userId),
+			this.memberships.listActive(userId),
+		]);
+		return user && memberships.length > 0 ? { user, memberships } : null;
 	}
 }

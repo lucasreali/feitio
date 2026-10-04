@@ -51,7 +51,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 - [x] Vínculo entre usuário e tenant, com papel (dono ou equipe)
 - [x] Login, logout e encerramento de todas as sessões
 - [ ] Troca de loja ativa para usuário com mais de um vínculo
-- [ ] Rota de dados do usuário logado
+- [x] Rota de dados do usuário logado
 - [ ] Limite de tentativas de login
 - [x] Guards de sessão e de papel
 - [ ] Edição das configurações da loja pelo dono

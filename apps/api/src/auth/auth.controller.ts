@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	Body,
 	Controller,
+	Get,
 	HttpCode,
 	Post,
 	Req,
@@ -23,7 +24,7 @@ import { AuthService } from "./auth.service.js";
 import { LoginDto } from "./login.dto.js";
 import { MeDto } from "./me.dto.js";
 import { toMeDto } from "./me.mapper.js";
-import { SESSION_SECURITY } from "./panel-scoped.decorator.js";
+import { PanelScoped, SESSION_SECURITY } from "./panel-scoped.decorator.js";
 
 @Controller("auth")
 export class AuthController {
@@ -62,6 +63,17 @@ export class AuthController {
 			tenantId: active.tenantId,
 		});
 		return toMeDto(found.user, active.tenantId, found.memberships);
+	}
+
+	/** The signed-in user, the store the session works in and every store they can open. */
+	@Get("me")
+	@PanelScoped()
+	async me(@CurrentSession() session: Session): Promise<MeDto> {
+		const found = await this.auth.load(session.userId);
+		if (!found) {
+			throw new UnauthorizedException();
+		}
+		return toMeDto(found.user, session.tenantId, found.memberships);
 	}
 
 	/** Ends the current session. */

@@ -167,6 +167,35 @@ describe("Admin panel sign-in (e2e)", () => {
 		});
 	});
 
+	describe("GET /auth/me", () => {
+		const me = (session?: string) =>
+			app.inject({
+				method: "GET",
+				url: "/auth/me",
+				cookies: session ? { [cookieName]: session } : {},
+			});
+
+		it("describes the signed-in user and their active store", async () => {
+			const response = await me(await signIn(ana));
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toMatchObject({
+				id: ana.id,
+				email: ana.email,
+				name: ana.name,
+				activeTenantId: first.id,
+			});
+			expect(
+				response.json().tenants.map((t: { id: string }) => t.id),
+			).toEqual([first.id, second.id]);
+			expect(response.body).not.toContain(ana.cpf);
+		});
+
+		it("answers 401 without a session", async () => {
+			expect((await me()).statusCode).toBe(401);
+		});
+	});
+
 	describe("POST /auth/logout", () => {
 		it("ends the current session and clears its cookie", async () => {
 			const session = await signIn(ana);
