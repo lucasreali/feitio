@@ -1,0 +1,106 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch or pull request cancels the run still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Supabase stands in for PostgreSQL and S3 everywhere else; CI uses local
+    # services with test values. Valkey comes from apps/api/docker-compose.yml.
+    services:
+      postgres:
+        # Supabase's major.
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: feitio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
+      storage:
+        # S3-compatible server.
+        image: rustfs/rustfs:1.0.0
+        env:
+          RUSTFS_ACCESS_KEY: feitio-ci
+          RUSTFS_SECRET_KEY: feitio-ci-secret
+        ports:
+          - 9000:9000
+
+    # Test values only, read by the API e2e tests and the db scripts.
+    env:
+      DATABASE_URL: postgresql://feitio_app:feitio-app-ci-password@localhost:5432/feitio
+      MIGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/feitio
+      STORAGE_ENDPOINT: http://localhost:9000
+      STORAGE_REGION: us-east-1
+      STORAGE_PUBLIC_BUCKET: feitio-public
+      STORAGE_PRIVATE_BUCKET: feitio-private
+      STORAGE_ACCESS_KEY_ID: feitio-ci
+      STORAGE_SECRET_ACCESS_KEY: feitio-ci-secret
+      STORAGE_PUBLIC_URL: http://localhost:9000/feitio-public
+      VALKEY_URL: redis://localhost:6379
+      COOKIE_SECRET: feitio-ci-cookie-secret-not-used-anywhere-else
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Version from packageManager in package.json.
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Biome
+        run: pnpm exec biome ci
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Start Valkey
+        run: pnpm services:up
+
+      - name: Prepare storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ env.STORAGE_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.STORAGE_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ env.STORAGE_REGION }}
+          AWS_ENDPOINT_URL: ${{ env.STORAGE_ENDPOINT }}
+        run: |
+          timeout 60 sh -c 'until curl -sf "$AWS_ENDPOINT_URL/health" > /dev/null; do sleep 1; done'
+          aws s3api create-bucket --bucket "$STORAGE_PUBLIC_BUCKET"
+          aws s3api create-bucket --bucket "$STORAGE_PRIVATE_BUCKET"
+          aws s3api put-bucket-policy --bucket "$STORAGE_PUBLIC_BUCKET" --policy \
+            "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::$STORAGE_PUBLIC_BUCKET/*\"}]}"
+
+      - name: Prepare database
+        run: |
+          pnpm --filter api db:roles
+          pnpm --filter api db:migrate
+
+      - name: API e2e tests
+        run: pnpm --filter api test:e2e

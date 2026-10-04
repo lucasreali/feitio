@@ -14,8 +14,9 @@ pnpm monorepo. `README.md` describes the target state and is the plan to follow.
 - `apps/admin` (port 3001) and `apps/checkout` (port 3002): React SPAs on Vite. Their shared rules are in `docs/ui-apps.md`.
 - `packages/storefront-starter` (port 3003): TanStack Start template, copied out of the monorepo to start each client's store.
 - `packages/config`: shared tsconfigs (`tsconfig.node.json`, `tsconfig.react.json`).
+- `.github/workflows/ci.yml`: the `Checks` job runs Biome, build, unit tests and the API e2e suite (against local PostgreSQL, Valkey and RustFS) on every pull request and push to `main`. Node comes from `.nvmrc`.
 
-Not created yet: the root `dev` and `fix` scripts, and CI.
+Not created yet: the root `dev` and `fix` scripts.
 
 ## Commands (from the root)
 

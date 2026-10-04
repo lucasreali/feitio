@@ -266,7 +266,10 @@ O arquivo `.github/workflows/ci.yml` roda em todo pull request e em todo envio p
 1. instala as dependências com o lockfile travado;
 2. verifica formatação e lint (`biome ci`);
 3. compila todos os projetos;
-4. roda os testes.
+4. roda os testes unitários de todo o monorepo;
+5. roda os testes de integração e ponta a ponta da API contra serviços locais: PostgreSQL 17, Valkey (o `docker-compose.yml` da API) e um S3 compatível (RustFS), com banco e buckets preparados do zero e só valores de teste.
+
+O Node vem do `.nvmrc`, e o pnpm, do campo `packageManager`. O job a exigir na proteção da `main` é `Checks`.
 
 A `main` é protegida: toda alteração entra por pull request, com o CI aprovado.
 
