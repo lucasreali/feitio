@@ -44,6 +44,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 
   There are no default privileges: a table without its grant stays closed to the API.
 - `tenants` has RLS with a read-only policy for `feitio_app`; only the owner writes it.
+- `users` (admin panel users) is a platform table like `tenants`: one user can belong to several tenants, the owner writes it and `feitio_app` only reads it. E-mails are stored lowercase (`Email` in `src/domain/email.ts`, plus a `CHECK`), and passwords only as scrypt hashes (`src/auth/password.ts`, `node:crypto`, no dependency).
 
 ## File storage
 

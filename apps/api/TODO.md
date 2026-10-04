@@ -47,7 +47,7 @@ Um módulo só está pronto quando:
 
 Equivale a Administrators, Roles e Sessions do Vendure.
 
-- [ ] Usuários, com e-mail único e senha em hash
+- [x] Usuários, com e-mail único e senha em hash
 - [ ] Vínculo entre usuário e tenant, com papel (dono ou equipe)
 - [ ] Login, logout e encerramento de todas as sessões
 - [ ] Troca de loja ativa para usuário com mais de um vínculo

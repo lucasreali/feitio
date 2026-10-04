@@ -50,6 +50,20 @@
       "when": 1791119629383,
       "tag": "0006_tenant_ids_default_v7",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791136584178,
+      "tag": "0007_create_users",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791136584684,
+      "tag": "0008_users_access",
+      "breakpoints": true
     }
   ]
 }
