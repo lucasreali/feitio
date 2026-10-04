@@ -15,9 +15,11 @@ const guardFor = (known: CurrentTenant | null) =>
 			slug === known?.slug ? known : null,
 	} as TenantResolver);
 
-const contextWith = (headers: Record<string, string>) => {
-	const request: { headers: Record<string, string>; tenant?: CurrentTenant } =
-		{ headers };
+const contextWith = (headers: Record<string, string | string[]>) => {
+	const request: {
+		headers: Record<string, string | string[]>;
+		tenant?: CurrentTenant;
+	} = { headers };
 	const context = {
 		switchToHttp: () => ({ getRequest: () => request }),
 	} as unknown as ExecutionContext;
@@ -29,6 +31,28 @@ describe("TenantGuard", () => {
 		const { request, context } = contextWith({ "x-tenant": "loja-aurora" });
 		await expect(guardFor(active).canActivate(context)).resolves.toBe(true);
 		expect(request.tenant).toEqual(active);
+	});
+
+	it("uses the first value of a repeated header and ignores surrounding spaces", async () => {
+		const repeated = contextWith({
+			"x-tenant": ["loja-aurora", "outra-loja"],
+		});
+		await expect(
+			guardFor(active).canActivate(repeated.context),
+		).resolves.toBe(true);
+		expect(repeated.request.tenant).toEqual(active);
+
+		const padded = contextWith({ "x-tenant": "  loja-aurora " });
+		await expect(
+			guardFor(active).canActivate(padded.context),
+		).resolves.toBe(true);
+	});
+
+	it("answers 400 for an empty header", async () => {
+		const { context } = contextWith({ "x-tenant": "" });
+		await expect(
+			guardFor(active).canActivate(context),
+		).rejects.toBeInstanceOf(BadRequestException);
 	});
 
 	it("answers 400 without the header", async () => {
