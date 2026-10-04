@@ -30,7 +30,7 @@ feitio-core/
 
 - Node.js 22 ou superior
 - pnpm 12 (a versão exata está no campo `packageManager` do `package.json`)
-- Docker com Docker Compose, para o Redis (Valkey) de desenvolvimento
+- Docker com Docker Compose, para o Valkey de desenvolvimento
 - Um projeto no Supabase (ou outro PostgreSQL + S3) para o banco e os arquivos
 
 ## Instalação
@@ -41,13 +41,13 @@ pnpm install
 
 Um único `pnpm install` na raiz instala as dependências de todos os projetos.
 
-## Banco de dados, arquivos e Redis
+## Banco de dados, arquivos e Valkey
 
 A API usa um PostgreSQL comum (com Drizzle) e um armazenamento de arquivos compatível com S3 (com o SDK oficial de S3). Nenhum código depende de fornecedor: trocar de provedor é só trocar variáveis de ambiente.
 
-O banco e os arquivos ficam no Supabase em todos os ambientes, inclusive no desenvolvimento. Localmente, o Docker (`apps/api/docker-compose.yml`) roda só o Redis, com o [Valkey](https://valkey.io), compatível com Redis. A API roda fora do Docker.
+O banco e os arquivos ficam no Supabase em todos os ambientes, inclusive no desenvolvimento. Localmente, o Docker (`apps/api/docker-compose.yml`) roda só o [Valkey](https://valkey.io), o armazenamento em memória. A API roda fora do Docker.
 
-O Redis serve para filas de tarefas em segundo plano (BullMQ), cache e controles de curta duração (limite de requisições, idempotência e travas). Ele roda com `maxmemory-policy noeviction`, que o BullMQ exige: por isso toda chave de cache precisa ter validade (TTL).
+O Valkey guarda as sessões do painel e vai servir para filas de tarefas em segundo plano (BullMQ), cache e controles de curta duração (limite de requisições, idempotência e travas). Ele roda com `maxmemory-policy noeviction`, que o BullMQ exige: por isso toda chave de cache precisa ter validade (TTL).
 
 1. Crie o arquivo de variáveis de ambiente da API a partir do exemplo e preencha com os dados do Supabase (veja "Supabase" abaixo). O `.env` fica fora do Git.
 
@@ -55,19 +55,23 @@ O Redis serve para filas de tarefas em segundo plano (BullMQ), cache e controles
 cp apps/api/.env.example apps/api/.env
 ```
 
-2. Suba o Redis local.
+2. Suba o Valkey local.
 
 ```bash
 pnpm services:up
 ```
 
-3. Aplique as migrações.
+3. Crie o usuário de aplicação no banco, aplique as migrações e, se quiser, crie os dois tenants de exemplo (`loja-aurora` e `loja-brisa`).
 
 ```bash
+pnpm --filter api db:roles
 pnpm --filter api db:migrate
+pnpm --filter api db:seed
 ```
 
-4. Suba a API e confira a conexão com o banco e o Redis em `http://localhost:3000/health`.
+O `db:roles` vem antes das migrações porque elas dão permissões a esse usuário. Os três comandos podem rodar de novo sem efeito colateral.
+
+4. Suba a API e confira a conexão com o banco e o Valkey em `http://localhost:3000/health`.
 
 ```bash
 pnpm dev:api
@@ -80,11 +84,38 @@ pnpm --filter api db:generate --name descricao_da_mudanca
 pnpm --filter api db:migrate
 ```
 
-As migrações geradas ficam em `apps/api/drizzle/` e são versionadas. Para derrubar o Redis, use `pnpm services:down`; os dados continuam no volume do Docker.
+As migrações geradas ficam em `apps/api/drizzle/` e são versionadas. Para derrubar o Valkey, use `pnpm services:down`; os dados continuam no volume do Docker.
 
-A API não sobe sem `DATABASE_URL`, sem as variáveis `STORAGE_*` nem sem `REDIS_URL`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
+### Os dois usuários do banco
+
+A API não usa o dono das tabelas. São dois usuários:
+
+- **Usuário de aplicação** (`feitio_app`, em `DATABASE_URL`): é com ele que a API se conecta. Não é dono de nenhuma tabela, não é superusuário e não pode ignorar a segurança por linha (RLS). Só alcança o que as migrações liberam para ele, uma tabela de cada vez. É criado pelo `db:roles`, com o nome e a senha que estão na própria `DATABASE_URL`; nenhuma senha vai para as migrações.
+- **Usuário de migração** (o dono das tabelas, em `MIGRATION_DATABASE_URL`): roda o `db:roles`, o `db:migrate` e o `db:seed`. A API nunca o usa.
+
+Cada lojista é um tenant, e o isolamento entre eles é garantido pelo próprio PostgreSQL: toda tabela de negócio tem a coluna `tenant_id` e regras de RLS que só deixam o usuário de aplicação ler e gravar linhas do tenant informado no início da transação. Fora desse contexto, nenhuma linha aparece. As rotas usadas pelas lojas e pelo checkout recebem o tenant no cabeçalho `X-Tenant` (o `slug` do lojista); por exemplo, `GET /store/settings` devolve o nome, o logo e o tema da loja.
+
+A API não sobe sem `DATABASE_URL`, sem as variáveis `STORAGE_*`, sem `VALKEY_URL` nem sem `COOKIE_SECRET`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
 
 O código usa os arquivos pela interface `FileStorage` (`apps/api/src/storage/`), nunca pela implementação S3. O teste `pnpm --filter api test:e2e` envia, lê e remove arquivos de verdade no armazenamento configurado no `.env`, sempre num tenant aleatório que ele apaga no final.
+
+### Variáveis de ambiente da API
+
+Ficam em `apps/api/.env`; o modelo é o `apps/api/.env.example`.
+
+| Variável | Obrigatória | Para que serve |
+|---|---|---|
+| `PORT` | não | Porta da API (padrão `3000`). |
+| `DATABASE_URL` | sim | Conexão da API com o PostgreSQL, como usuário de aplicação (`feitio_app`). Pooler do Supabase em modo sessão, com TLS validado. A senha precisa ter pelo menos 16 caracteres; o `db:roles` cria o usuário com ela. |
+| `MIGRATION_DATABASE_URL` | sim | Conexão como dono das tabelas, usada só por `db:roles`, `db:migrate` e `db:seed`. |
+| `STORAGE_*` | sim | Armazenamento S3: endpoint, região, buckets, chaves e endereço público. |
+| `VALKEY_URL` | sim | Conexão com o Valkey, no formato `redis://host:porta` (`redis://` é o nome do protocolo que o Valkey usa). Localmente, `redis://localhost:6379`. |
+| `COOKIE_SECRET` | sim | Segredo que assina os cookies. Mínimo de 32 caracteres; gere com `openssl rand -base64 48`. Trocar o segredo invalida todas as sessões. |
+| `SESSION_COOKIE_NAME` | não | Nome do cookie de sessão do painel (padrão `feitio_session`). |
+| `SESSION_TTL_SECONDS` | não | Quanto tempo, em segundos, uma sessão vive sem uso (padrão `604800`, 7 dias). Cada requisição renova o prazo. |
+| `SESSION_COOKIE_DOMAIN` | não | Domínio do cookie de sessão, por exemplo `.feitio.com.br` para valer em subdomínios. Vazio: só o host da API. |
+
+O cookie de sessão é sempre `HttpOnly` e `SameSite=Lax`, e só trafega por HTTPS (`Secure`) quando `NODE_ENV=production`.
 
 #### Organização dos arquivos
 
@@ -102,13 +133,14 @@ O código usa os arquivos pela interface `FileStorage` (`apps/api/src/storage/`)
 
 O Supabase é usado só como PostgreSQL e como S3. Não há biblioteca do Supabase no projeto: basta preencher as variáveis de ambiente da API.
 
-**Banco.** Use a string de conexão do pooler em modo sessão (Session pooler), que fica no painel do projeto em **Connect**:
+**Banco.** Use a string de conexão do pooler em modo sessão (Session pooler), que fica no painel do projeto em **Connect**. Pelo pooler, o usuário é `<usuário>.<project-ref>`: o de migração é o `postgres`, e o de aplicação é o `feitio_app`, com uma senha nova que você escolhe:
 
 ```bash
-DATABASE_URL=postgresql://postgres.<project-ref>:<senha>@aws-0-<região>.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt
+DATABASE_URL=postgresql://feitio_app.<project-ref>:<senha-do-app>@aws-0-<região>.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt
+MIGRATION_DATABASE_URL=postgresql://postgres.<project-ref>:<senha>@aws-0-<região>.pooler.supabase.com:5432/postgres?sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt
 ```
 
-O certificado (`prod-ca-2021.crt`) é baixado em **Database Settings → SSL Configuration** e fica em `apps/api/certs/`, fora do Git; o caminho é relativo a `apps/api`. Use a porta 5432 (modo sessão), nunca a 6543 (modo transação), que quebra o lock do `drizzle-kit migrate`. No driver `pg`, `sslmode=require` valida o certificado contra as CAs do sistema, e a CA do Supabase não está entre elas; por isso o `sslrootcert`. A mesma variável serve para o `pnpm --filter api db:migrate`.
+O certificado (`prod-ca-2021.crt`) é baixado em **Database Settings → SSL Configuration** e fica em `apps/api/certs/`, fora do Git; o caminho é relativo a `apps/api`. Use a porta 5432 (modo sessão), nunca a 6543 (modo transação), que quebra o lock do `drizzle-kit migrate`. No driver `pg`, `sslmode=require` valida o certificado contra as CAs do sistema, e a CA do Supabase não está entre elas; por isso o `sslrootcert`. As duas variáveis usam o mesmo certificado.
 
 **Arquivos.** Em **Storage**, crie dois buckets: um marcado como público e outro privado. Gere as chaves em **Storage → S3 Configuration → Access keys**:
 
@@ -132,8 +164,8 @@ Todos rodam a partir da raiz.
 |---|---|
 | `pnpm dev` | Sobe API, painel e checkout ao mesmo tempo |
 | `pnpm dev:api` | Sobe só a API |
-| `pnpm services:up` | Sobe o Redis (Valkey) de desenvolvimento no Docker |
-| `pnpm services:down` | Derruba o Redis de desenvolvimento, mantendo os dados |
+| `pnpm services:up` | Sobe o Valkey de desenvolvimento no Docker |
+| `pnpm services:down` | Derruba o Valkey de desenvolvimento, mantendo os dados |
 | `pnpm dev:admin` | Sobe só o painel |
 | `pnpm dev:checkout` | Sobe só o checkout |
 | `pnpm dev:storefront` | Sobe só o storefront starter |
@@ -187,7 +219,7 @@ O código vai para `src/api/gen/` e fica fora do Git. A URL da API vem de `VITE_
 | Painel | 3001 |
 | Checkout | 3002 |
 | Storefront starter | 3003 |
-| Redis (Valkey) | 6379 |
+| Valkey | 6379 |
 
 ## Dependências
 
