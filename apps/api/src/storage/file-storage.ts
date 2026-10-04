@@ -21,6 +21,10 @@ export interface UploadFileInput {
  * Vendor-neutral file storage. Inject this class; never the implementation.
  * Files live at `tenants/{tenantId}/{category}/{random id}{extension}`, in the
  * public or the private bucket. Callers never choose the path.
+ *
+ * SOLID: one interface for public and private files. No caller uses it yet;
+ * split it (interface segregation) when callers that only need public files
+ * appear, not before.
  */
 export abstract class FileStorage {
 	abstract upload(input: UploadFileInput): Promise<StoredFile>;

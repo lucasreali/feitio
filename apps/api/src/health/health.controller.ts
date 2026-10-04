@@ -3,6 +3,11 @@ import { DatabaseHealth } from "../database/database-health.js";
 import { ValkeyHealth } from "../valkey/valkey-health.js";
 import { HealthResponseDto } from "./health-response.dto.js";
 
+/**
+ * SOLID: depends on the two concrete checks instead of a list of health
+ * indicators. Nest has no built-in multi-injection, and with two stable
+ * checks editing this controller costs less than the abstraction would.
+ */
 @Controller("health")
 export class HealthController {
 	constructor(

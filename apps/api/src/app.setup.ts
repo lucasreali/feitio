@@ -23,7 +23,10 @@ const docsContentSecurityPolicy = {
 	directives: { "upgrade-insecure-requests": null },
 };
 
-/** Fastify plugins and Swagger; shared by main.ts and the e2e tests. */
+/**
+ * Fastify plugins and Swagger; shared by main.ts and the e2e tests. This is
+ * the app's composition root, so it knows every plugin on purpose.
+ */
 export async function configureApp(app: NestFastifyApplication) {
 	const fastify = app.getHttpAdapter().getInstance();
 

@@ -30,6 +30,10 @@ declare module "fastify" {
  * Cookie sessions stored in Valkey. The cookie holds a signed random token;
  * Valkey keys use the token's SHA-256, so reading Valkey never yields a
  * usable cookie. Each use renews the expiration (sliding sessions).
+ *
+ * SOLID: Valkey storage and the cookie stay in one class on purpose. The
+ * same rules drive both (the TTL is the cookie's max-age, renewal rewrites
+ * both), so splitting them would spread one security rule over two classes.
  */
 @Injectable()
 export class SessionService {

@@ -13,6 +13,11 @@ export type TenantTransaction = Parameters<
  * transaction that first tells PostgreSQL the current tenant
  * (`app.tenant_id`, transaction-local), so RLS limits every read and write to
  * that tenant's rows, with or without filters in the query.
+ *
+ * SOLID: repositories depend on this concrete class, not on an interface.
+ * Data access is tested against a real PostgreSQL (never a mocked database),
+ * and there is a single implementation, so an interface would only add
+ * indirection.
  */
 @Injectable()
 export class TenantDatabase {

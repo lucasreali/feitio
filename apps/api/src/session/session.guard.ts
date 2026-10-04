@@ -14,6 +14,10 @@ import { SessionService } from "./session.service.js";
  * sessions get a generic 401. Data-changing methods (POST, PUT, PATCH,
  * DELETE) also need a valid CSRF token (`x-csrf-token`, from GET /csrf-token),
  * or get 403. Read the session with @CurrentSession().
+ *
+ * SOLID: session and CSRF checks stay in one guard on purpose, so every
+ * session route gets CSRF protection by construction; a separate guard could
+ * be forgotten.
  */
 @Injectable()
 export class SessionGuard implements CanActivate {
