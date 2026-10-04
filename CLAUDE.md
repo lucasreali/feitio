@@ -1,62 +1,89 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. Each project has its own `CLAUDE.md` with the rules for its folder.
 
 ## Language
 
-Everything internal to the system is written in English: identifiers (variables, functions, classes, files), code comments, docs and Markdown files, commit messages, PRs and issues.
+Everything internal to the system is written in English: identifiers, code comments, docs and Markdown files, commit messages, PRs and issues.
 
-## Repository state
+## Structure
 
-`README.md` describes the target state and is the plan to follow: use its structure and conventions when creating apps, packages and modules. Today `apps/api`, `apps/admin`, `apps/checkout`, `packages/storefront-starter` and `packages/config` exist; the three UIs are empty shells. Not yet created: the root `dev` and `fix` scripts, and CI.
+pnpm monorepo. `README.md` describes the target state and is the plan to follow.
 
-## Commands
+- `apps/api`: NestJS on Fastify, PostgreSQL with Drizzle, Valkey.
+- `apps/admin` (port 3001) and `apps/checkout` (port 3002): React SPAs on Vite. Their shared rules are in `docs/ui-apps.md`.
+- `packages/storefront-starter` (port 3003): TanStack Start template, copied out of the monorepo to start each client's store.
+- `packages/config`: shared tsconfigs (`tsconfig.node.json`, `tsconfig.react.json`).
 
-- `pnpm build` (root) runs every project's `build`. `pnpm dev:api`, `dev:admin` (3001), `dev:checkout` (3002) and `dev:storefront` (3003) start each project.
-- `pnpm check` (root) runs `biome check --write`: it formats and applies lint fixes to files. Run it after changing code.
-- `pnpm test` (root) runs each project's `vitest.config.ts` under `apps/*` and `packages/*`. The api e2e suite is not included; run it with `pnpm --filter api test:e2e`.
-- Vitest flags passed through pnpm need `--`: `pnpm test -- --reporter=verbose`. Without it, pnpm 12 parses the flag itself.
+Not created yet: the root `dev` and `fix` scripts, and CI.
 
-## API (`apps/api`)
+## Commands (from the root)
 
-- ESM with `module: nodenext`: local imports end in `.js`, including through the alias (`@/foo/bar.js`).
-- The `@/*` alias maps to `src/*` (tsconfig `paths`, no `baseUrl`, which is deprecated in TS 6). `nest build` rewrites the alias to a relative path; Vitest resolves it via `vite-tsconfig-paths`.
-- Runs on Fastify (`FastifyAdapter`), not Express. `@nestjs/platform-express` is in `node_modules` only as a peer of `@nestjs/core`; do not use Express APIs or types. E2E tests need `app.getHttpAdapter().getInstance().ready()` after `init()`.
-- OpenAPI is generated from code by the `@nestjs/swagger` CLI plugin (`nest-cli.json`): it reads controllers and files ending in `.dto.ts` / `.entity.ts` at `nest build`/`nest start`, so DTO fields need no `@ApiProperty`. JSDoc comments become descriptions. The plugin does not run under Vitest. The running API serves the spec at `/openapi.json` and Swagger UI at `/docs`.
-- Database: PostgreSQL 17 (same major as Supabase) + Drizzle. `src/database/` holds the `DatabaseModule`, the `DATABASE` injection token and the schemas: one file per table in `schemas/` (each exports its table and enums, which is what drizzle-kit reads), and `schema.ts`, which exports only a `schemas` object with every table for the Drizzle client. A new table needs its own file and an entry in `schemas`. Business tables are only queried through `TenantDatabase.run` (see `apps/api/CLAUDE.md`); the raw `DATABASE` client is only for tenant-agnostic reads such as the health check and tenant resolution.
-- `.env` lives in `apps/api` and is loaded with `process.loadEnvFile()` by `main.ts`, `drizzle.config.ts`, the `scripts/` and the e2e Vitest config. The API fails at startup without `DATABASE_URL`, and the e2e suite needs `.env` too.
-- Two database users: the API connects as `feitio_app` (`DATABASE_URL`), which owns nothing and cannot bypass RLS; `db:roles`, `db:migrate` and `db:seed` connect as the owner (`MIGRATION_DATABASE_URL`). Order on a new database: `db:roles`, then `db:migrate`.
-- Migrations: change the files in `src/database/schemas/`, then `pnpm --filter api db:generate --name <change>` and `pnpm --filter api db:migrate`. Never edit generated files in `apps/api/drizzle/`; Biome ignores that folder.
-- Supabase connection: session pooler (port 5432, never the 6543 transaction pooler, which breaks drizzle-kit's advisory lock) with `sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt`. The CA file lives in `apps/api/certs/` (gitignored) and the path is relative to `apps/api`, where the API, drizzle-kit and the e2e suite run.
-- Vendor neutrality: production uses Supabase only as plain PostgreSQL and S3. Never add `supabase-js` or any vendor SDK; switching providers must only change env vars.
-- File storage: inject the abstract `FileStorage` class (`src/storage/file-storage.ts`), never `S3FileStorage`. `StorageModule` builds it from the `STORAGE_*` env vars and fails at startup if any is missing.
-- Two buckets by access type, never one per tenant: public (permanent URL from `STORAGE_PUBLIC_URL`) and private (only `temporaryUrl`). Keys are always built by `buildObjectKey` (`src/storage/object-key.ts`) as `tenants/{tenantId}/{category}/{random uuid}{ext}`; never accept a path from callers. Persist the returned `StoredFile` (`visibility` + `key`). `removeTenantFiles` wipes a tenant from both buckets.
-- Upload security: `upload` only accepts the content types in `src/storage/file-types.ts` (images in public; PDF, CSV and XML in private) and derives the extension from the type. Never allow HTML or SVG: browsers run them as pages. `temporaryUrl` always forces download (`attachment`). Never serve the buckets from a subdomain of a Feitio domain; user files must stay on a separate site so a malicious file cannot reach the apps' cookies.
-- Every environment, development included, uses the PostgreSQL and S3 from `.env` (Supabase). `apps/api/docker-compose.yml` only runs Valkey 9 (`noeviction`), started with `pnpm services:up`. The API itself runs outside Docker. The e2e suite talks to the real storage in `.env`, always under a random tenant it deletes.
-- Valkey (the in-memory store, never Redis): `ValkeyModule` provides a shared client (ioredis, which speaks the protocol), built from `VALKEY_URL` (startup fails without it) with `lazyConnect`; inject `Valkey` from `src/valkey/valkey.ts`. Every cache key needs a TTL because the server never evicts (BullMQ requires `noeviction`). BullMQ queues must create their own connections with `maxRetriesPerRequest: null`. `/health` checks the database and Valkey. See `apps/api/CLAUDE.md` for sessions and Fastify plugins.
-- Biome's `useImportType` rule is off for the api: do not turn imports of injected classes into `import type`, it breaks Nest dependency injection.
-
-## Frontend
-
-- No Next.js. `apps/admin` and `apps/checkout` are Vite + React + TanStack Router + TanStack Query, browser-only. `packages/storefront-starter` is TanStack Start, because it needs server-side rendering.
-- Each UI generates its own API client with Kubb from the API's OpenAPI spec (`/openapi.json`); there is no shared client package. `pnpm --filter <ui> api:generate` (API running) writes types, Zod schemas, a fetch client and TanStack Query hooks to `src/api/gen/`, which is gitignored; never edit it. The base URL comes from `VITE_API_URL`.
-- Stack in all three: TanStack Router (file routes in `src/routes/`; `routeTree.gen.ts` is generated and ignored by Biome) and TanStack Query, Tailwind CSS v4, Base UI (`@base-ui/react`) as the component base, Phosphor icons (`@phosphor-icons/react`), `cn()` from `src/lib/cn.ts` and `cva` for variants. No shadcn/ui, no other component library, no Lucide.
-- Each project keeps its own components in `src/components/ui/`; there is no shared component package.
-- The `frontend-design` plugin (Anthropic) is enabled for this repository in `.claude/settings.json`. When using it, keep this repo's choices over the skill's defaults: components built on Base UI (`@base-ui/react`), Tailwind with colors and radius only from the theme variables (`bg-primary`, `text-foreground`, never raw colors), and Phosphor icons (`@phosphor-icons/react`). No shadcn/ui, no other component library, no Lucide.
-- Theme: colors and radius are CSS variables in `src/styles.css`, exposed to Tailwind as theme colors (`background`, `foreground`, `primary`, `primary-foreground`, `muted`, `muted-foreground`, `accent`, `border`, `destructive`, `radius`). Use only theme classes (`bg-primary`, `text-foreground`); Tailwind's default palette is disabled. Admin and checkout share the Feitio palette and folder layout; the checkout overrides it per tenant only through `applyTheme()` in `src/theme.ts`; the starter has neutral defaults.
-- Tests: each UI has a `vitest.config.ts` (jsdom + Testing Library); Vitest itself is only at the root. `noUnusedLocals`/`noUnusedParameters` are off in the UI tsconfigs because Kubb's generated code trips them; unused code is a lint concern.
-- TypeScript: React projects extend `@feitio/config/tsconfig.react.json`; Node projects extend `@feitio/config/tsconfig.node.json`.
-- Biome's React domain and Tailwind class sorting apply only to those three folders, via an override in `biome.json`. A new UI project must be added to that override's `includes`.
+- `pnpm build`: every project's build.
+- `pnpm dev:api`, `pnpm dev:admin`, `pnpm dev:checkout`, `pnpm dev:storefront`: one project in development.
+- `pnpm check`: `biome check --write` (formats and applies safe lint fixes).
+- `pnpm test`: every project's unit and UI tests. The API integration and e2e suite is separate: `pnpm --filter api test:e2e`.
+- `pnpm services:up` / `pnpm services:down`: local Valkey (Docker).
+- pnpm 12 passes arguments to scripts as they are; do not add `--`, which makes Vitest ignore the filter. `--reporter` is the exception, because pnpm takes it for itself: use `pnpm exec vitest run ... --reporter=verbose`.
 
 ## Dependencies
 
-- Add or remove libraries only through pnpm (`pnpm --filter <project> add|remove <pkg>`, or `pnpm add -Dw` / `pnpm remove -w` at the root). Never edit dependencies in `package.json` by hand and then run `pnpm install`.
-- Vitest, Biome and other shared tooling live only in the root `package.json` (`pnpm add -Dw`). Do not declare them in projects.
-- Every new project with tests needs a `vitest.config.ts` with `name` and `root: import.meta.dirname`. With `root: "./"`, globs resolve from the directory the command runs in and pick up other projects' tests.
+- Add or remove packages only with pnpm: `pnpm --filter <project> add|remove <pkg>`, or `pnpm add -Dw` / `pnpm remove -w` at the root. Never edit dependencies in a `package.json` by hand.
+- Shared tooling lives only in the root `package.json`: Biome, Vitest and TypeScript. Projects do not declare them.
+- `pnpm-workspace.yaml` sets `saveExact` and `minimumReleaseAge` (7 days): versions are pinned, and a version published less than 7 days ago is refused (`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`). Pin the newest older version instead of relaxing the policy.
+- Packages with install scripts must be listed in `allowBuilds` (`true` to run, `false` to deny).
+
+## Biome and Vitest
+
+- One Biome config, `biome.json` at the root. It ignores gitignored files, `**/.claude`, `apps/api/drizzle` and `**/routeTree.gen.ts`.
+- Vitest is installed only at the root. The root `vitest.config.ts` runs each project's `vitest.config.ts` as a Vitest project. A new project with tests needs its own `vitest.config.ts` with `name` and `root: import.meta.dirname`; with `root: "./"` its globs pick up other projects' tests.
+
+## TDD
+
+Every new piece of code is built test first.
+
+### The cycle
+
+1. Write a test that describes the behavior you want.
+2. Run it and see it fail, for the reason you expect (not a typo or a missing import).
+3. Write the least production code that makes it pass.
+4. Refactor with the tests green.
+5. Repeat for the next behavior.
+
+### Rules
+
+- No production code without a failing test that asks for it.
+- A bug fix starts with a test that reproduces the bug.
+- Tests check observable behavior (inputs, outputs, responses, what the user sees), not implementation details.
+- A test you never saw fail is not trusted: make it fail once, for example by breaking the code it covers.
+- A task is done only when every test in the monorepo passes: `pnpm test` and `pnpm --filter api test:e2e`.
+
+### What to test
+
+- API:
+  - business rules: unit tests;
+  - data access: integration tests against a real PostgreSQL, never a mocked database;
+  - routes: end-to-end tests through the Fastify app.
+  - Every new business table comes with a test proving tenants cannot see each other's rows.
+- UIs: what the user sees and does, with Testing Library. Never test code generated by Kubb.
+
+### Where tests live
+
+- API unit tests: `apps/api/src/**/<name>.spec.ts`, next to the code.
+- API integration and e2e tests: `apps/api/test/<name>.e2e-spec.ts`. They need `apps/api/.env`, Valkey (`pnpm services:up`) and the PostgreSQL and S3 configured there.
+- UI tests: `src/**/<name>.test.ts(x)`, next to the code (jsdom + Testing Library).
+
+### Commands
+
+- Whole monorepo: `pnpm test`, then `pnpm --filter api test:e2e`.
+- One project: `pnpm test --project <name>` (`api`, `admin`, `checkout`, `storefront-starter`), or `pnpm --filter <project> test`.
+- One file: `pnpm test <path>` from the root, or `pnpm --filter api test:e2e test/<name>.e2e-spec.ts` for an e2e file.
+- One test by name: add `-t "<part of the name>"`.
 
 ## Git
 
-- Every commit follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>[optional scope][!]: <description>`, optional body and footers, and `BREAKING CHANGE:` in a footer or `!` for breaking changes. Examples: `feat(api): ...`, `fix: ...`, `chore!: ...`.
+- Never commit unless the user asks for it.
+- Every commit follows [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `<type>[optional scope][!]: <description>`, optional body and footers, `BREAKING CHANGE:` or `!` for breaking changes.
 - No mention of Claude, Claude Code or Anthropic in commits, PRs, issues or review comments: no `Co-Authored-By`, no "Generated with Claude Code", no attribution links or emojis.
 - The main branch is `main`.
 
