@@ -99,6 +99,7 @@ describe("Customers panel routes (e2e)", () => {
 				registered: false,
 				createdAt: expect.any(String),
 				addresses: [],
+				groups: [],
 			});
 		});
 

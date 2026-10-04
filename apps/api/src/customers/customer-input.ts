@@ -1,9 +1,11 @@
 import { Cep } from "../domain/cep.js";
 import { Email } from "../domain/email.js";
+import { CustomerGroupId } from "../domain/ids.js";
 import { Phone } from "../domain/phone.js";
 import { BrazilianState } from "../domain/state.js";
 import { TaxId } from "../domain/tax-id.js";
 import {
+	idList,
 	invalid,
 	objectBody,
 	optionalText,
@@ -76,6 +78,7 @@ export const profileParsers = {
 const customerParsers = {
 	email: domain(Email, "email"),
 	...profileParsers,
+	groupIds: (value: unknown) => idList(value, "groupIds", CustomerGroupId),
 };
 
 export type NewCustomer = Parsed<typeof customerParsers>;
@@ -83,7 +86,11 @@ export type CustomerChanges = Partial<NewCustomer>;
 
 /** Body of POST /admin/customers: a customer without an account. */
 export function parseNewCustomer(body: unknown): NewCustomer {
-	return complete(body, customerParsers, { phone: null, taxId: null });
+	return complete(body, customerParsers, {
+		phone: null,
+		taxId: null,
+		groupIds: [],
+	});
 }
 
 /** Body of PATCH /admin/customers/:id. */

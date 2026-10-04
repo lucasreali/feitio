@@ -16,7 +16,11 @@ import {
 	ApiQuery,
 } from "@nestjs/swagger";
 import { PanelScoped } from "../auth/panel-scoped.decorator.js";
-import { CustomerAddressId, CustomerId } from "../domain/ids.js";
+import {
+	CustomerAddressId,
+	CustomerGroupId,
+	CustomerId,
+} from "../domain/ids.js";
 import { parsePage } from "../http/page.js";
 import { invalid, pathId } from "../http/request-body.js";
 import {
@@ -56,7 +60,12 @@ export class CustomersAdminController {
 		required: false,
 		description: "Part of the name or of the e-mail.",
 	})
-	@ApiBadRequestResponse({ description: "Invalid page or search." })
+	@ApiQuery({
+		name: "groupId",
+		required: false,
+		description: "Only customers in this group.",
+	})
+	@ApiBadRequestResponse({ description: "Invalid page, search or group." })
 	async page(
 		@Query() query: Record<string, unknown>,
 	): Promise<CustomerPageDto> {
@@ -67,10 +76,16 @@ export class CustomersAdminController {
 				: typeof query.q === "string" && query.q.length <= SEARCH_MAX
 					? query.q.trim()
 					: invalid(`q must have up to ${SEARCH_MAX} characters`);
-		const { items, total } = await this.customers.list(
-			page,
-			search || undefined,
-		);
+		const groupId =
+			query.groupId === undefined
+				? undefined
+				: (typeof query.groupId === "string" &&
+						CustomerGroupId.tryParse(query.groupId)) ||
+					invalid("groupId must be a group id");
+		const { items, total } = await this.customers.list(page, {
+			search: search || undefined,
+			groupId,
+		});
 		return { items, page: page.page, pageSize: page.pageSize, total };
 	}
 
@@ -84,7 +99,9 @@ export class CustomersAdminController {
 	/** Adds a customer without an account; they can create one in the store later. */
 	@Post()
 	@PanelScoped()
-	@ApiBadRequestResponse({ description: "Invalid customer." })
+	@ApiBadRequestResponse({
+		description: "Invalid customer, or a group the store does not have.",
+	})
 	@ApiConflictResponse({
 		description: "The store already has a customer with this e-mail.",
 	})
@@ -94,7 +111,9 @@ export class CustomersAdminController {
 
 	@Patch(":id")
 	@PanelScoped()
-	@ApiBadRequestResponse({ description: "Invalid changes." })
+	@ApiBadRequestResponse({
+		description: "Invalid changes, or a group the store does not have.",
+	})
 	@ApiNotFoundResponse({ description: "The store has no such customer." })
 	@ApiConflictResponse({
 		description: "The store already has a customer with this e-mail.",

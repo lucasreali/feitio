@@ -1,3 +1,5 @@
+import { CustomerGroupRefDto } from "./customer-group.dto.js";
+
 export class AddressDto {
 	id: string;
 	/** Who receives the parcel. */
@@ -30,6 +32,8 @@ export class CustomerDto {
 	createdAt: Date;
 	/** Defaults first, then oldest first. */
 	addresses: AddressDto[];
+	/** By name. */
+	groups: CustomerGroupRefDto[];
 }
 
 export class CustomerSummaryDto {
@@ -57,6 +61,8 @@ export class CreateCustomerDto {
 	phone?: string | null;
 	/** CPF or CNPJ, with or without formatting. */
 	taxId?: string | null;
+	/** Ids of the customer's groups. */
+	groupIds?: string[];
 }
 
 export class UpdateCustomerDto {
@@ -66,6 +72,8 @@ export class UpdateCustomerDto {
 	phone?: string | null;
 	/** null clears it. */
 	taxId?: string | null;
+	/** Every group of the customer, replacing the current ones. */
+	groupIds?: string[];
 }
 
 export class CreateAddressDto {

@@ -85,6 +85,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Customers (`src/customers/`) are the stores' buyers, one per e-mail in each store. Without `password_hash` a customer is a guest (added by the panel, later by the checkout); with one they are registered and sign in to the store. Contact data uses the domain types (`Email`, `Phone`, `TaxId`); request bodies go through the parsers in `customer-input.ts`, shared by the panel and the stores.
 - Addresses are Brazilian (`Cep`, `BrazilianState`, `number` as text for "s/n"). Each customer has at most one default shipping and one default billing address (partial unique indexes); setting a new default clears the old one, under `lockCustomer`. Addresses list defaults first, then oldest first.
 - Panel routes: `GET /admin/customers` (newest first, paged, `q` searches name and e-mail with `%` and `_` as text), `GET`, `POST` and `PATCH /admin/customers/:id`, and `POST`, `PATCH` and `DELETE /admin/customers/:id/addresses/:addressId`; they answer with the whole `CustomerDto`, which never carries the password hash.
+- Customer groups (`customer_groups`, for promotions and prices): `GET`, `POST`, `PATCH` (rename) and `DELETE /admin/customer-groups/:id`, names unique per store. A customer's groups are set with `groupIds` on `POST`/`PATCH /admin/customers` (the whole list; another store's group is 400), and `GET /admin/customers?groupId=` filters by group.
 
 ## Valkey and sessions
 

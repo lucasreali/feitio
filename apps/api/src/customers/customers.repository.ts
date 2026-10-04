@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+	BadRequestException,
+	ConflictException,
+	Injectable,
+} from "@nestjs/common";
 import {
 	and,
 	asc,
@@ -12,8 +16,14 @@ import {
 } from "drizzle-orm";
 import { translateConstraints } from "../database/pg-error.js";
 import { customerAddresses } from "../database/schemas/customer-addresses.js";
+import { customerGroupMembers } from "../database/schemas/customer-group-members.js";
+import { customerGroups } from "../database/schemas/customer-groups.js";
 import { customers } from "../database/schemas/customers.js";
-import type { CustomerAddressId, CustomerId } from "../domain/ids.js";
+import type {
+	CustomerAddressId,
+	CustomerGroupId,
+	CustomerId,
+} from "../domain/ids.js";
 import type { Page } from "../http/page.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
@@ -32,12 +42,34 @@ import type {
 	NewCustomer,
 } from "./customer-input.js";
 
-const emailTaken = {
+const customerConstraints = {
 	customers_tenant_email_unique: () =>
 		new ConflictException(
 			"The store already has a customer with this e-mail",
 		),
+	customer_group_members_group_fk: () =>
+		new BadRequestException("groupIds has a group the store does not have"),
 };
+
+/** Replaces the customer's groups. */
+async function setGroups(
+	tx: TenantTransaction,
+	customerId: CustomerId,
+	groupIds: CustomerGroupId[],
+) {
+	await tx
+		.delete(customerGroupMembers)
+		.where(eq(customerGroupMembers.customerId, customerId));
+	if (groupIds.length > 0) {
+		await tx.insert(customerGroupMembers).values(
+			groupIds.map((groupId) => ({
+				tenantId: TenantContext.id(),
+				groupId,
+				customerId,
+			})),
+		);
+	}
+}
 
 const summary = {
 	id: customers.id,
@@ -126,14 +158,20 @@ export class CustomersRepository {
 	/** Newest first; `search` matches part of the name or the e-mail. */
 	list(
 		page: Page,
-		search?: string,
+		filter: { search?: string; groupId?: CustomerGroupId },
 	): Promise<{ items: CustomerSummaryDto[]; total: number }> {
-		const where: SQL | undefined = search
-			? or(
-					ilike(customers.name, contains(search)),
-					ilike(customers.email, contains(search)),
-				)
-			: undefined;
+		const { search, groupId } = filter;
+		const where: SQL | undefined = and(
+			search
+				? or(
+						ilike(customers.name, contains(search)),
+						ilike(customers.email, contains(search)),
+					)
+				: undefined,
+			groupId
+				? sql`exists (select 1 from ${customerGroupMembers} where ${customerGroupMembers.customerId} = ${customers.id} and ${customerGroupMembers.groupId} = ${groupId})`
+				: undefined,
+		);
 		return this.tenantDb.run(async (tx) => {
 			const [items, [{ total }]] = await Promise.all([
 				tx
@@ -168,38 +206,58 @@ export class CustomersRepository {
 					asc(customerAddresses.createdAt),
 					asc(customerAddresses.id),
 				);
-			return { ...customer, addresses };
+			const groups = await tx
+				.select({ id: customerGroups.id, name: customerGroups.name })
+				.from(customerGroupMembers)
+				.innerJoin(
+					customerGroups,
+					eq(customerGroups.id, customerGroupMembers.groupId),
+				)
+				.where(eq(customerGroupMembers.customerId, id))
+				.orderBy(asc(customerGroups.name), asc(customerGroups.id));
+			return { ...customer, addresses, groups };
 		});
 	}
 
-	/** A customer without an account. Throws 409 for an e-mail in use. */
-	create(input: NewCustomer): Promise<CustomerId> {
+	/** A customer without an account. Throws 409 for an e-mail in use, 400 for an unknown group. */
+	create({ groupIds, ...fields }: NewCustomer): Promise<CustomerId> {
 		return translateConstraints(
 			() =>
 				this.tenantDb.run(async (tx) => {
 					const [{ id }] = await tx
 						.insert(customers)
-						.values({ ...input, tenantId: TenantContext.id() })
+						.values({ ...fields, tenantId: TenantContext.id() })
 						.returning({ id: customers.id });
+					await setGroups(tx, id, groupIds);
 					return id;
 				}),
-			emailTaken,
+			customerConstraints,
 		);
 	}
 
-	/** false when the tenant has no such customer; 409 for an e-mail in use. */
-	update(id: CustomerId, changes: CustomerChanges): Promise<boolean> {
+	/** false when the tenant has no such customer; 409 for an e-mail in use, 400 for an unknown group. */
+	update(
+		id: CustomerId,
+		{ groupIds, ...fields }: CustomerChanges,
+	): Promise<boolean> {
 		return translateConstraints(
 			() =>
 				this.tenantDb.run(async (tx) => {
-					const rows = await tx
-						.update(customers)
-						.set(changes)
-						.where(eq(customers.id, id))
-						.returning({ id: customers.id });
-					return rows.length > 0;
+					if (!(await lockCustomer(tx, id))) {
+						return false;
+					}
+					if (Object.keys(fields).length > 0) {
+						await tx
+							.update(customers)
+							.set(fields)
+							.where(eq(customers.id, id));
+					}
+					if (groupIds) {
+						await setGroups(tx, id, groupIds);
+					}
+					return true;
 				}),
-			emailTaken,
+			customerConstraints,
 		);
 	}
 

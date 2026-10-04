@@ -27,6 +27,7 @@ describe("parseNewCustomer", () => {
 			name: "Ana",
 			phone: null,
 			taxId: null,
+			groupIds: [],
 		});
 		expect(
 			parseNewCustomer({
@@ -40,7 +41,19 @@ describe("parseNewCustomer", () => {
 			name: "Ana",
 			phone: "+5511987654321",
 			taxId: "11222333000181",
+			groupIds: [],
 		});
+	});
+
+	it("takes the groups, by id", () => {
+		const group = "0199d5a4-0000-7000-8000-000000000000";
+		expect(
+			parseNewCustomer({
+				email: "ana@example.com",
+				name: "Ana",
+				groupIds: [group],
+			}).groupIds,
+		).toEqual([group]);
 	});
 
 	it.each([
@@ -79,6 +92,16 @@ describe("parseCustomerChanges", () => {
 		["no field", {}],
 		["a blank name", { name: " " }],
 		["a null e-mail", { email: null }],
+		["groups that are not ids", { groupIds: ["vip"] }],
+		[
+			"repeated groups",
+			{
+				groupIds: [
+					"0199d5a4-0000-7000-8000-000000000000",
+					"0199d5a4-0000-7000-8000-000000000000",
+				],
+			},
+		],
 	])("refuses %s", (_case, body) => {
 		expect(() => parseCustomerChanges(body)).toThrow(BadRequestException);
 	});
