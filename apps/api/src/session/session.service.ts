@@ -69,7 +69,18 @@ export class SessionService {
 			...(JSON.parse(stored) as Session),
 			lastUsedAt: new Date().toISOString(),
 		};
-		await this.save(hash, session);
+		// XX: renew only if the session still exists. A destroy() or
+		// destroyAllForUser() that ran after the GET above must win; a plain SET
+		// would bring the ended session back.
+		const ttl = this.config.ttlSeconds;
+		const [[, renewed]] = (await this.valkey
+			.multi()
+			.set(sessionKey(hash), JSON.stringify(session), "EX", ttl, "XX")
+			.expire(userSessionsKey(session.userId), ttl)
+			.exec()) as [[Error | null, "OK" | null], unknown];
+		if (renewed !== "OK") {
+			return null;
+		}
 		this.setCookie(reply, token);
 		return session;
 	}

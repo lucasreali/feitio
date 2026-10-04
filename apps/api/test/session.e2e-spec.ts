@@ -27,6 +27,7 @@ import {
 	type Session,
 	SessionService,
 } from "../src/session/session.service.js";
+import { Valkey } from "../src/valkey/valkey.js";
 
 // Runs against the real Valkey in VALKEY_URL (`pnpm services:up`).
 
@@ -198,6 +199,25 @@ describe("Sessions (e2e)", () => {
 		expect((await me(first.cookie.value)).statusCode).toBe(401);
 		expect((await me(second.cookie.value)).statusCode).toBe(401);
 		expect((await me(otherUser.cookie.value)).statusCode).toBe(200);
+	});
+
+	it("does not bring back a session ended while it was being renewed", async () => {
+		const { owner, cookie } = await start();
+		const valkey = app.get(Valkey);
+		const originalGet = valkey.get.bind(valkey);
+		// End every session of the user right after the renewal read it.
+		const spy = vi
+			.spyOn(valkey, "get")
+			.mockImplementationOnce(async (key) => {
+				const value = await originalGet(key);
+				await sessions.destroyAllForUser(owner.userId);
+				return value;
+			});
+
+		expect((await me(cookie.value)).statusCode).toBe(401);
+		spy.mockRestore();
+		expect((await me(cookie.value)).statusCode).toBe(401);
+		expect(await sessions.destroyAllForUser(owner.userId)).toBe(0);
 	});
 
 	it("rejects a tampered cookie", async () => {
