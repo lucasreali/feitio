@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { FileStorage } from "./file-storage.js";
-import { S3FileStorage } from "./s3-file-storage.js";
+import { createS3Client, S3FileStorage } from "./s3-file-storage.js";
 
 const requiredEnv = {
 	endpoint: "STORAGE_ENDPOINT",
@@ -26,7 +26,7 @@ const requiredEnv = {
 					);
 				}
 				const env = (name: string) => process.env[name] as string;
-				return new S3FileStorage({
+				const config = {
 					endpoint: env(requiredEnv.endpoint),
 					region: env(requiredEnv.region),
 					publicBucket: env(requiredEnv.publicBucket),
@@ -34,7 +34,8 @@ const requiredEnv = {
 					accessKeyId: env(requiredEnv.accessKeyId),
 					secretAccessKey: env(requiredEnv.secretAccessKey),
 					publicUrl: env(requiredEnv.publicUrl),
-				});
+				};
+				return new S3FileStorage(config, createS3Client(config));
 			},
 		},
 	],

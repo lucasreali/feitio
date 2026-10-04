@@ -29,22 +29,30 @@ export interface S3FileStorageConfig {
 
 const DEFAULT_TEMPORARY_URL_SECONDS = 15 * 60;
 
-/** FileStorage for any S3-compatible service. */
-export class S3FileStorage extends FileStorage {
-	private readonly client: S3Client;
+/** The S3 client for any S3-compatible service (AWS S3, Supabase Storage, RustFS...). */
+export function createS3Client(config: S3FileStorageConfig): S3Client {
+	return new S3Client({
+		endpoint: config.endpoint,
+		region: config.region,
+		credentials: {
+			accessKeyId: config.accessKeyId,
+			secretAccessKey: config.secretAccessKey,
+		},
+		// Path-style URLs (endpoint/bucket/key) work on every S3-compatible service.
+		forcePathStyle: true,
+	});
+}
 
-	constructor(private readonly config: S3FileStorageConfig) {
+/**
+ * FileStorage for any S3-compatible service. The client is injected (see
+ * StorageModule) so the storage rules can be tested without a server.
+ */
+export class S3FileStorage extends FileStorage {
+	constructor(
+		private readonly config: S3FileStorageConfig,
+		private readonly client: S3Client,
+	) {
 		super();
-		this.client = new S3Client({
-			endpoint: config.endpoint,
-			region: config.region,
-			credentials: {
-				accessKeyId: config.accessKeyId,
-				secretAccessKey: config.secretAccessKey,
-			},
-			// Path-style URLs (endpoint/bucket/key) work on every S3-compatible service.
-			forcePathStyle: true,
-		});
 	}
 
 	async upload(input: UploadFileInput): Promise<StoredFile> {
