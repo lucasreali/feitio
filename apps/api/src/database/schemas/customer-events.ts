@@ -62,9 +62,11 @@ export const customerEvents = pgTable(
 		userId: uuid("user_id")
 			.$type<UserId>()
 			.references(() => users.id, { onDelete: "set null" }),
+		// The time of the insert, not of the transaction's start, so the entries
+		// of one change keep their order.
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
-			.defaultNow(),
+			.default(sql`clock_timestamp()`),
 	},
 	(table) => [
 		foreignKey({

@@ -162,6 +162,13 @@
       "when": 1791157174233,
       "tag": "0022_customers_access",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791157983560,
+      "tag": "0023_customer_events_clock",
+      "breakpoints": true
     }
   ]
 }

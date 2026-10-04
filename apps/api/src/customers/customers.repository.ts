@@ -10,6 +10,7 @@ import {
 	desc,
 	eq,
 	ilike,
+	inArray,
 	or,
 	type SQL,
 	sql,
@@ -36,6 +37,8 @@ import type {
 	CustomerDto,
 	CustomerSummaryDto,
 } from "./customer.dto.js";
+import type { CustomerEventDto } from "./customer-history.dto.js";
+import { type Actor, history, recordEvent } from "./customer-history.js";
 import type {
 	AddressChanges,
 	CustomerChanges,
@@ -52,15 +55,17 @@ const customerConstraints = {
 		new BadRequestException("groupIds has a group the store does not have"),
 };
 
-/** Replaces the customer's groups. */
+/** Replaces the customer's groups, and records the groups joined and left. */
 async function setGroups(
 	tx: TenantTransaction,
 	customerId: CustomerId,
 	groupIds: CustomerGroupId[],
+	actor: Actor,
 ) {
-	await tx
+	const before = await tx
 		.delete(customerGroupMembers)
-		.where(eq(customerGroupMembers.customerId, customerId));
+		.where(eq(customerGroupMembers.customerId, customerId))
+		.returning({ groupId: customerGroupMembers.groupId });
 	if (groupIds.length > 0) {
 		await tx.insert(customerGroupMembers).values(
 			groupIds.map((groupId) => ({
@@ -69,6 +74,37 @@ async function setGroups(
 				customerId,
 			})),
 		);
+	}
+	const was = new Set(before.map((row) => row.groupId));
+	const changes = [
+		...groupIds
+			.filter((id) => !was.has(id))
+			.map((id) => ["added_to_group", id] as const),
+		...[...was]
+			.filter((id) => !groupIds.includes(id))
+			.map((id) => ["removed_from_group", id] as const),
+	];
+	if (changes.length === 0) {
+		return;
+	}
+	const names = new Map(
+		(
+			await tx
+				.select({ id: customerGroups.id, name: customerGroups.name })
+				.from(customerGroups)
+				.where(
+					inArray(
+						customerGroups.id,
+						changes.map(([, id]) => id),
+					),
+				)
+		).map((group) => [group.id, group.name]),
+	);
+	for (const [kind, groupId] of changes) {
+		await recordEvent(tx, customerId, kind, actor, {
+			groupId,
+			groupName: names.get(groupId),
+		});
 	}
 }
 
@@ -221,7 +257,10 @@ export class CustomersRepository {
 	}
 
 	/** A customer without an account. Throws 409 for an e-mail in use, 400 for an unknown group. */
-	create({ groupIds, ...fields }: NewCustomer): Promise<CustomerId> {
+	create(
+		{ groupIds, ...fields }: NewCustomer,
+		actor: Actor,
+	): Promise<CustomerId> {
 		return translateConstraints(
 			() =>
 				this.tenantDb.run(async (tx) => {
@@ -229,7 +268,8 @@ export class CustomersRepository {
 						.insert(customers)
 						.values({ ...fields, tenantId: TenantContext.id() })
 						.returning({ id: customers.id });
-					await setGroups(tx, id, groupIds);
+					await recordEvent(tx, id, "created", actor);
+					await setGroups(tx, id, groupIds, actor);
 					return id;
 				}),
 			customerConstraints,
@@ -240,6 +280,7 @@ export class CustomersRepository {
 	update(
 		id: CustomerId,
 		{ groupIds, ...fields }: CustomerChanges,
+		actor: Actor,
 	): Promise<boolean> {
 		return translateConstraints(
 			() =>
@@ -252,9 +293,12 @@ export class CustomersRepository {
 							.update(customers)
 							.set(fields)
 							.where(eq(customers.id, id));
+						await recordEvent(tx, id, "profile_updated", actor, {
+							fields: Object.keys(fields),
+						});
 					}
 					if (groupIds) {
-						await setGroups(tx, id, groupIds);
+						await setGroups(tx, id, groupIds, actor);
 					}
 					return true;
 				}),
@@ -273,6 +317,7 @@ export class CustomersRepository {
 						.insert(customers)
 						.values({ ...input, tenantId: TenantContext.id() })
 						.returning({ id: customers.id });
+					await recordEvent(tx, id, "registered", null);
 					return id;
 				}),
 			customerConstraints,
@@ -299,26 +344,38 @@ export class CustomersRepository {
 		return row;
 	}
 
+	/** A new password, chosen by the buyer. */
 	async setPasswordHash(id: CustomerId, passwordHash: string): Promise<void> {
-		await this.tenantDb.run((tx) =>
-			tx
+		await this.tenantDb.run(async (tx) => {
+			await tx
 				.update(customers)
 				.set({ passwordHash })
-				.where(eq(customers.id, id)),
-		);
+				.where(eq(customers.id, id));
+			await recordEvent(tx, id, "password_changed", null);
+		});
 	}
 
 	/** false when the tenant has no such customer. */
-	addAddress(customerId: CustomerId, input: NewAddress): Promise<boolean> {
+	addAddress(
+		customerId: CustomerId,
+		input: NewAddress,
+		actor: Actor,
+	): Promise<boolean> {
 		return this.tenantDb.run(async (tx) => {
 			if (!(await lockCustomer(tx, customerId))) {
 				return false;
 			}
-			await tx.insert(customerAddresses).values({
-				...(await addressColumns(tx, customerId, input)),
-				tenantId: TenantContext.id(),
-				customerId,
-			} as typeof customerAddresses.$inferInsert);
+			const [{ id }] = await tx
+				.insert(customerAddresses)
+				.values({
+					...(await addressColumns(tx, customerId, input)),
+					tenantId: TenantContext.id(),
+					customerId,
+				} as typeof customerAddresses.$inferInsert)
+				.returning({ id: customerAddresses.id });
+			await recordEvent(tx, customerId, "address_added", actor, {
+				addressId: id,
+			});
 			return true;
 		});
 	}
@@ -328,6 +385,7 @@ export class CustomersRepository {
 		customerId: CustomerId,
 		id: CustomerAddressId,
 		changes: AddressChanges,
+		actor: Actor,
 	): Promise<boolean> {
 		return this.tenantDb.run(async (tx) => {
 			if (!(await lockCustomer(tx, customerId))) {
@@ -343,7 +401,14 @@ export class CustomersRepository {
 					),
 				)
 				.returning({ id: customerAddresses.id });
-			return rows.length > 0;
+			if (rows.length === 0) {
+				return false;
+			}
+			await recordEvent(tx, customerId, "address_updated", actor, {
+				addressId: id,
+				fields: Object.keys(changes),
+			});
+			return true;
 		});
 	}
 
@@ -351,6 +416,7 @@ export class CustomersRepository {
 	removeAddress(
 		customerId: CustomerId,
 		id: CustomerAddressId,
+		actor: Actor,
 	): Promise<boolean> {
 		return this.tenantDb.run(async (tx) => {
 			const rows = await tx
@@ -362,7 +428,40 @@ export class CustomersRepository {
 					),
 				)
 				.returning({ id: customerAddresses.id });
-			return rows.length > 0;
+			if (rows.length === 0) {
+				return false;
+			}
+			await recordEvent(tx, customerId, "address_removed", actor, {
+				addressId: id,
+			});
+			return true;
 		});
+	}
+
+	/** Newest first; undefined when the tenant has no such customer. */
+	history(
+		id: CustomerId,
+		page: Page,
+	): Promise<{ items: CustomerEventDto[]; total: number } | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const [customer] = await tx
+				.select({ id: customers.id })
+				.from(customers)
+				.where(eq(customers.id, id));
+			return customer && history(tx, id, page);
+		});
+	}
+
+	/** A note by the store's staff; undefined when the tenant has no such customer. */
+	addNote(
+		id: CustomerId,
+		note: string,
+		actor: Actor,
+	): Promise<CustomerEventDto | undefined> {
+		return this.tenantDb.run(async (tx) =>
+			(await lockCustomer(tx, id))
+				? recordEvent(tx, id, "note", actor, { note })
+				: undefined,
+		);
 	}
 }

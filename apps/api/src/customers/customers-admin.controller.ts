@@ -22,7 +22,14 @@ import {
 	CustomerId,
 } from "../domain/ids.js";
 import { parsePage } from "../http/page.js";
-import { invalid, pathId } from "../http/request-body.js";
+import {
+	invalid,
+	objectBody,
+	pathId,
+	requiredText,
+} from "../http/request-body.js";
+import { CurrentSession } from "../session/current-session.decorator.js";
+import type { Session } from "../session/session.service.js";
 import {
 	CreateAddressDto,
 	CreateCustomerDto,
@@ -32,6 +39,11 @@ import {
 	UpdateCustomerDto,
 } from "./customer.dto.js";
 import {
+	CustomerEventDto,
+	CustomerEventPageDto,
+	CustomerNoteDto,
+} from "./customer-history.dto.js";
+import {
 	parseAddressChanges,
 	parseCustomerChanges,
 	parseNewAddress,
@@ -40,6 +52,7 @@ import {
 import { CustomersRepository } from "./customers.repository.js";
 
 const SEARCH_MAX = 120;
+const NOTE_MAX = 2000;
 
 /** The store's customers and their address books. */
 @Controller("admin/customers")
@@ -105,8 +118,13 @@ export class CustomersAdminController {
 	@ApiConflictResponse({
 		description: "The store already has a customer with this e-mail.",
 	})
-	async create(@Body() body: CreateCustomerDto): Promise<CustomerDto> {
-		return this.found(await this.customers.create(parseNewCustomer(body)));
+	async create(
+		@Body() body: CreateCustomerDto,
+		@CurrentSession() session: Session,
+	): Promise<CustomerDto> {
+		return this.found(
+			await this.customers.create(parseNewCustomer(body), session.userId),
+		);
 	}
 
 	@Patch(":id")
@@ -121,10 +139,13 @@ export class CustomersAdminController {
 	async update(
 		@Param("id") id: string,
 		@Body() body: UpdateCustomerDto,
+		@CurrentSession() session: Session,
 	): Promise<CustomerDto> {
 		const customerId = pathId(id, CustomerId);
 		const changes = parseCustomerChanges(body);
-		if (!(await this.customers.update(customerId, changes))) {
+		if (
+			!(await this.customers.update(customerId, changes, session.userId))
+		) {
 			throw new NotFoundException();
 		}
 		return this.found(customerId);
@@ -137,10 +158,17 @@ export class CustomersAdminController {
 	async addAddress(
 		@Param("id") id: string,
 		@Body() body: CreateAddressDto,
+		@CurrentSession() session: Session,
 	): Promise<CustomerDto> {
 		const customerId = pathId(id, CustomerId);
 		const input = parseNewAddress(body);
-		if (!(await this.customers.addAddress(customerId, input))) {
+		if (
+			!(await this.customers.addAddress(
+				customerId,
+				input,
+				session.userId,
+			))
+		) {
 			throw new NotFoundException();
 		}
 		return this.found(customerId);
@@ -154,6 +182,7 @@ export class CustomersAdminController {
 		@Param("id") id: string,
 		@Param("addressId") addressId: string,
 		@Body() body: UpdateAddressDto,
+		@CurrentSession() session: Session,
 	): Promise<CustomerDto> {
 		const customerId = pathId(id, CustomerId);
 		const changes = parseAddressChanges(body);
@@ -162,6 +191,7 @@ export class CustomersAdminController {
 				customerId,
 				pathId(addressId, CustomerAddressId),
 				changes,
+				session.userId,
 			))
 		) {
 			throw new NotFoundException();
@@ -175,17 +205,72 @@ export class CustomersAdminController {
 	async removeAddress(
 		@Param("id") id: string,
 		@Param("addressId") addressId: string,
+		@CurrentSession() session: Session,
 	): Promise<CustomerDto> {
 		const customerId = pathId(id, CustomerId);
 		if (
 			!(await this.customers.removeAddress(
 				customerId,
 				pathId(addressId, CustomerAddressId),
+				session.userId,
 			))
 		) {
 			throw new NotFoundException();
 		}
 		return this.found(customerId);
+	}
+
+	/** What happened to the customer, newest first. */
+	@Get(":id/history")
+	@PanelScoped()
+	@ApiQuery({ name: "page", required: false, description: "From 1." })
+	@ApiQuery({
+		name: "pageSize",
+		required: false,
+		description: "1 to 100, 24 by default.",
+	})
+	@ApiBadRequestResponse({ description: "Invalid page." })
+	@ApiNotFoundResponse({ description: "The store has no such customer." })
+	async history(
+		@Param("id") id: string,
+		@Query() query: Record<string, unknown>,
+	): Promise<CustomerEventPageDto> {
+		const page = parsePage(query);
+		const result = await this.customers.history(
+			pathId(id, CustomerId),
+			page,
+		);
+		if (!result) {
+			throw new NotFoundException();
+		}
+		return { ...result, page: page.page, pageSize: page.pageSize };
+	}
+
+	/** Adds a note by the staff to the customer's history. */
+	@Post(":id/notes")
+	@PanelScoped()
+	@ApiBadRequestResponse({ description: "Invalid note." })
+	@ApiNotFoundResponse({ description: "The store has no such customer." })
+	async addNote(
+		@Param("id") id: string,
+		@Body() body: CustomerNoteDto,
+		@CurrentSession() session: Session,
+	): Promise<CustomerEventDto> {
+		const customerId = pathId(id, CustomerId);
+		const note = requiredText(
+			objectBody(body, ["note"]).note,
+			"note",
+			NOTE_MAX,
+		);
+		const entry = await this.customers.addNote(
+			customerId,
+			note,
+			session.userId,
+		);
+		if (!entry) {
+			throw new NotFoundException();
+		}
+		return entry;
 	}
 
 	private async found(id: CustomerId): Promise<CustomerDto> {

@@ -153,6 +153,7 @@ export class AccountController {
 		await this.customers.update(
 			session.customerId,
 			parseProfileChanges(body),
+			null,
 		);
 		return this.account(session.customerId);
 	}
@@ -189,6 +190,7 @@ export class AccountController {
 		await this.customers.addAddress(
 			session.customerId,
 			parseNewAddress(body),
+			null,
 		);
 		return this.account(session.customerId);
 	}
@@ -208,6 +210,7 @@ export class AccountController {
 				session.customerId,
 				pathId(id, CustomerAddressId),
 				changes,
+				null,
 			))
 		) {
 			throw new NotFoundException();
@@ -226,6 +229,7 @@ export class AccountController {
 			!(await this.customers.removeAddress(
 				session.customerId,
 				pathId(id, CustomerAddressId),
+				null,
 			))
 		) {
 			throw new NotFoundException();
