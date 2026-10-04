@@ -180,6 +180,45 @@ describe("Assets (e2e)", () => {
 		});
 	});
 
+	describe("GET /admin/assets", () => {
+		it("pages the store's images, newest first", async () => {
+			const tenant = await fixtures.tenant();
+			const user = await fixtures.user();
+			await fixtures.member(tenant, user, "staff");
+			const auth = await signIn(app, user);
+			const uploaded: string[] = [];
+			for (let i = 0; i < 3; i++) {
+				uploaded.push(
+					(await upload(auth, multipartFile(PNG, "image/png"))).json()
+						.id,
+				);
+			}
+			const list = (query: string) =>
+				app.inject({
+					method: "GET",
+					url: `/admin/assets${query}`,
+					cookies: auth.cookies,
+				});
+
+			const page = await list("?pageSize=2");
+
+			expect(page.statusCode).toBe(200);
+			expect(page.json()).toEqual({
+				page: 1,
+				pageSize: 2,
+				total: 3,
+				items: [
+					{ id: uploaded[2], url: expect.stringMatching(/\.png$/) },
+					{ id: uploaded[1], url: expect.any(String) },
+				],
+			});
+			expect((await list("?page=2&pageSize=2")).json().items).toEqual([
+				{ id: uploaded[0], url: expect.any(String) },
+			]);
+			await storage.removeTenantFiles(tenant.id);
+		});
+	});
+
 	describe("DELETE /admin/assets/:id", () => {
 		it("removes the record and the file", async () => {
 			const auth = await signIn(app, staff);

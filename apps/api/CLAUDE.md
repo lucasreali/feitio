@@ -55,7 +55,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Two buckets by access type, never one per tenant: public (permanent URL from `STORAGE_PUBLIC_URL`) and private (only `temporaryUrl`, which always forces download).
 - Keys are built only by `buildObjectKey` as `tenants/{tenantId}/{category}/{uuid}{ext}`; never accept a path from callers. Persist the returned `StoredFile` (`visibility` + `key`). `removeTenantFiles` wipes a tenant from both buckets.
 - `upload` accepts only the types in `src/storage/file-types.ts` and derives the extension from the type. Never allow HTML or SVG. Never serve the buckets from a subdomain of a Feitio domain.
-- Catalog images are assets (`src/assets/`, table `assets`, panel routes `POST /admin/assets` and `DELETE /admin/assets/:id`). The type comes from the file's first bytes (`detectImageType`), never from the type the client declares; anything else is 415. An asset row keeps only the key: assets are always public. Removal deletes the row and then the file in the same transaction, so a file that cannot be removed keeps its row.
+- Catalog images are assets (`src/assets/`, table `assets`, panel routes `GET /admin/assets` (newest first, paged), `POST /admin/assets` and `DELETE /admin/assets/:id`). The type comes from the file's first bytes (`detectImageType`), never from the type the client declares; anything else is 415. An asset row keeps only the key: assets are always public. Removal deletes the row and then the file in the same transaction, so a file that cannot be removed keeps its row.
 
 ## Catalog
 

@@ -2,10 +2,12 @@ import {
 	BadRequestException,
 	Controller,
 	Delete,
+	Get,
 	HttpCode,
 	NotFoundException,
 	Param,
 	Post,
+	Query,
 	Req,
 	UnsupportedMediaTypeException,
 } from "@nestjs/common";
@@ -16,18 +18,36 @@ import {
 	ApiNoContentResponse,
 	ApiNotFoundResponse,
 	ApiPayloadTooLargeResponse,
+	ApiQuery,
 	ApiUnsupportedMediaTypeResponse,
 } from "@nestjs/swagger";
 import type { FastifyRequest } from "fastify";
 import { PanelScoped } from "../auth/panel-scoped.decorator.js";
 import { AssetId } from "../domain/ids.js";
-import { AssetDto } from "./asset.dto.js";
+import { parsePage } from "../http/page.js";
+import { AssetDto, AssetPageDto } from "./asset.dto.js";
 import { AssetsService } from "./assets.service.js";
 import { detectImageType } from "./image-type.js";
 
 @Controller("admin/assets")
 export class AssetsAdminController {
 	constructor(private readonly assets: AssetsService) {}
+
+	/** The store's images, newest first, to pick for products and variants. */
+	@Get()
+	@PanelScoped()
+	@ApiQuery({ name: "page", required: false, description: "From 1." })
+	@ApiQuery({
+		name: "pageSize",
+		required: false,
+		description: "1 to 100, 24 by default.",
+	})
+	@ApiBadRequestResponse({ description: "Invalid page." })
+	async list(@Query() query: Record<string, unknown>): Promise<AssetPageDto> {
+		const page = parsePage(query);
+		const { items, total } = await this.assets.list(page);
+		return { items, page: page.page, pageSize: page.pageSize, total };
+	}
 
 	/** Uploads a catalog image (JPEG, PNG, WebP or AVIF, up to 5 MB) in the `file` field. */
 	@Post()

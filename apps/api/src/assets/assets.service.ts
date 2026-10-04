@@ -1,11 +1,12 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { count, desc, eq } from "drizzle-orm";
 import {
 	FOREIGN_KEY_VIOLATION,
 	translateConstraints,
 } from "../database/pg-error.js";
 import { assets } from "../database/schemas/assets.js";
 import type { AssetId } from "../domain/ids.js";
+import type { Page } from "../http/page.js";
 import { FileStorage } from "../storage/file-storage.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import { TenantDatabase } from "../tenancy/tenant-database.js";
@@ -21,6 +22,28 @@ export class AssetsService {
 		private readonly tenantDb: TenantDatabase,
 		private readonly storage: FileStorage,
 	) {}
+
+	/** A page of the tenant's images, newest first. */
+	async list(page: Page): Promise<{ items: AssetDto[]; total: number }> {
+		const [rows, [{ total }]] = await this.tenantDb.run((tx) =>
+			Promise.all([
+				tx
+					.select({ id: assets.id, key: assets.key })
+					.from(assets)
+					.orderBy(desc(assets.createdAt), desc(assets.id))
+					.limit(page.pageSize)
+					.offset(page.offset),
+				tx.select({ total: count() }).from(assets),
+			]),
+		);
+		return {
+			items: rows.map((row) => ({
+				id: row.id,
+				url: this.storage.publicUrl(row.key),
+			})),
+			total,
+		};
+	}
 
 	/** Stores an image whose type was checked from its bytes, and records it. */
 	async create(body: Uint8Array, contentType: string): Promise<AssetDto> {
