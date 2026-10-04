@@ -25,3 +25,7 @@ export const UserId = entityId("UserId");
 /** Id of a membership: a user's access to a tenant, with a role. */
 export type MembershipId = Brand<string, "MembershipId">;
 export const MembershipId = entityId("MembershipId");
+
+/** Id of an asset: an image of the store's catalog in the public bucket. */
+export type AssetId = Brand<string, "AssetId">;
+export const AssetId = entityId("AssetId");

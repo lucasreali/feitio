@@ -1,3 +1,4 @@
+import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import pg from "pg";
 import { hashPassword } from "../src/auth/password.js";
 import type { MembershipRole } from "../src/database/schemas/memberships.js";
@@ -5,6 +6,7 @@ import { Cpf } from "../src/domain/cpf.js";
 import { Email } from "../src/domain/email.js";
 import { TenantId, UserId } from "../src/domain/ids.js";
 import { TenantSlug } from "../src/domain/tenant-slug.js";
+import { readSessionConfig } from "../src/session/session.config.js";
 
 /** A random valid CPF: nine random digits plus their check digits. */
 export function randomCpf(): Cpf {
@@ -122,4 +124,39 @@ export class Fixtures {
 		]);
 		await Promise.all([this.owner.end(), this.app.end()]);
 	}
+}
+
+/** Cookies and headers of a signed-in panel user, CSRF token included. */
+export interface PanelAuth {
+	cookies: Record<string, string>;
+	headers: Record<string, string>;
+}
+
+/** Signs in through POST /auth/login and fetches a CSRF token. */
+export async function signIn(
+	app: NestFastifyApplication,
+	user: TestUser,
+): Promise<PanelAuth> {
+	const { cookieName } = readSessionConfig();
+	const login = await app.inject({
+		method: "POST",
+		url: "/auth/login",
+		payload: { email: user.email, password: user.password },
+	});
+	const session = login.cookies.find((c) => c.name === cookieName)?.value;
+	if (!session) {
+		throw new Error(`Sign-in failed: ${login.statusCode}`);
+	}
+	const csrf = await app.inject({
+		method: "GET",
+		url: "/csrf-token",
+		cookies: { [cookieName]: session },
+	});
+	return {
+		cookies: {
+			[cookieName]: session,
+			_csrf: csrf.cookies.find((c) => c.name === "_csrf")?.value ?? "",
+		},
+		headers: { "x-csrf-token": csrf.json<{ token: string }>().token },
+	};
 }

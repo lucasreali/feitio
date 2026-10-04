@@ -85,6 +85,20 @@
       "when": 1791136762058,
       "tag": "0011_add_users_cpf",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791138564757,
+      "tag": "0012_create_assets",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791138565198,
+      "tag": "0013_assets_access",
+      "breakpoints": true
     }
   ]
 }

@@ -62,7 +62,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 
 Equivale a Product, ProductVariant, ProductOption, Facet, Collection e Asset.
 
-- [ ] Arquivos (assets): upload de imagem para o bucket público, com registro no banco, e remoção
+- [x] Arquivos (assets): upload de imagem para o bucket público, com registro no banco, e remoção
 - [ ] Produtos: nome, slug, descrição, situação (rascunho, ativo, arquivado) e imagens
 - [ ] Grupos de opções e opções (por exemplo, Tamanho: P, M, G e Cor: Azul)
 - [ ] Variantes: SKU, preço, combinação de opções e imagem própria

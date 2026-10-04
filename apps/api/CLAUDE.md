@@ -15,7 +15,7 @@ Rules for the API. The root `CLAUDE.md` (structure, commands, dependencies, TDD,
 - `@fastify/helmet`: default policy on every response. Only routes under `/docs` drop `upgrade-insecure-requests` (Swagger UI over plain HTTP), through an `onRoute` hook registered before helmet. Do not relax it anywhere else.
 - `@fastify/cookie`: signed cookies (`COOKIE_SECRET`).
 - `@fastify/csrf-protection`: the secret sits in a signed `_csrf` cookie, and tokens are bound to the session that asked for them (`getUserInfo` plus an HMAC key derived from `COOKIE_SECRET`). `SessionGuard` checks `x-csrf-token` on `POST`, `PUT`, `PATCH` and `DELETE` (`src/session/csrf.ts` runs the plugin's own check); `GET /csrf-token` (session required) issues tokens. Routes without `SessionGuard` (tenant-header routes, `/health`, docs, webhooks) are exempt.
-- `@fastify/multipart`: `MAX_UPLOAD_BYTES` (5 MB) per file; larger files fail with 413. There are no upload routes yet.
+- `@fastify/multipart`: `MAX_UPLOAD_BYTES` (5 MB) per file; larger files fail with 413. Upload routes read the file with `request.file()` from a `FastifyRequest`.
 - `@fastify/static`: serves the Swagger UI assets.
 
 ## Database
@@ -53,6 +53,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Two buckets by access type, never one per tenant: public (permanent URL from `STORAGE_PUBLIC_URL`) and private (only `temporaryUrl`, which always forces download).
 - Keys are built only by `buildObjectKey` as `tenants/{tenantId}/{category}/{uuid}{ext}`; never accept a path from callers. Persist the returned `StoredFile` (`visibility` + `key`). `removeTenantFiles` wipes a tenant from both buckets.
 - `upload` accepts only the types in `src/storage/file-types.ts` and derives the extension from the type. Never allow HTML or SVG. Never serve the buckets from a subdomain of a Feitio domain.
+- Catalog images are assets (`src/assets/`, table `assets`, panel routes `POST /admin/assets` and `DELETE /admin/assets/:id`). The type comes from the file's first bytes (`detectImageType`), never from the type the client declares; anything else is 415. An asset row keeps only the key: assets are always public. Removal deletes the row and then the file in the same transaction, so a file that cannot be removed keeps its row.
 
 ## Valkey and sessions
 
@@ -131,3 +132,4 @@ Wrapping primitives pays off for some values and weighs on the code if applied t
 
 - Unit: `*.spec.ts` next to the code, in `src/` or `scripts/` (`pnpm test --project api`).
 - Integration and e2e: `test/*.e2e-spec.ts` (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env`. Tenant tests create random tenants as the owner and delete them at the end.
+- `test/fixtures.ts` creates tenants, users and memberships (`Fixtures`) and signs a user in to the panel with a CSRF token (`signIn`).
