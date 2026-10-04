@@ -196,6 +196,57 @@ describe("Admin panel sign-in (e2e)", () => {
 		});
 	});
 
+	describe("POST /auth/tenant", () => {
+		const switchTo = async (session: string, tenantId: unknown) =>
+			app.inject({
+				method: "POST",
+				url: "/auth/tenant",
+				payload: { tenantId },
+				...(await csrf(session)),
+			});
+		const activeTenantOf = async (session: string) =>
+			(
+				await app.inject({
+					method: "GET",
+					url: "/auth/me",
+					cookies: { [cookieName]: session },
+				})
+			).json().activeTenantId;
+
+		it("moves the user to another of their stores with a new session", async () => {
+			const before = await signIn(ana);
+
+			const response = await switchTo(before, second.id);
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json().activeTenantId).toBe(second.id);
+			const after = response.cookies.find((c) => c.name === cookieName);
+			expect(after?.value).toBeTruthy();
+			expect(await activeTenantOf(after?.value ?? "")).toBe(second.id);
+			// The old token is gone, and its CSRF tokens with it.
+			expect(await isSignedIn(before)).toBe(false);
+		});
+
+		it("refuses a store the user does not belong to or that is inactive", async () => {
+			const stranger = await fixtures.tenant();
+			const session = await signIn(ana);
+
+			for (const tenantId of [stranger.id, closed.id]) {
+				const response = await switchTo(session, tenantId);
+				expect(response.statusCode).toBe(403);
+			}
+			expect(await activeTenantOf(session)).toBe(first.id);
+		});
+
+		it.each([undefined, 42, "not-an-id"])(
+			"answers 400 to the tenant id %j",
+			async (tenantId) => {
+				const response = await switchTo(await signIn(ana), tenantId);
+				expect(response.statusCode).toBe(400);
+			},
+		);
+	});
+
 	describe("POST /auth/logout", () => {
 		it("ends the current session and clears its cookie", async () => {
 			const session = await signIn(ana);

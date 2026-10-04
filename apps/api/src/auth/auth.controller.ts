@@ -2,6 +2,7 @@ import {
 	BadRequestException,
 	Body,
 	Controller,
+	ForbiddenException,
 	Get,
 	HttpCode,
 	Post,
@@ -17,6 +18,7 @@ import {
 	ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { TenantId } from "../domain/ids.js";
 import { CurrentSession } from "../session/current-session.decorator.js";
 import { SessionGuard } from "../session/session.guard.js";
 import { type Session, SessionService } from "../session/session.service.js";
@@ -25,6 +27,7 @@ import { LoginDto } from "./login.dto.js";
 import { MeDto } from "./me.dto.js";
 import { toMeDto } from "./me.mapper.js";
 import { PanelScoped, SESSION_SECURITY } from "./panel-scoped.decorator.js";
+import { SwitchTenantDto } from "./switch-tenant.dto.js";
 
 @Controller("auth")
 export class AuthController {
@@ -74,6 +77,42 @@ export class AuthController {
 			throw new UnauthorizedException();
 		}
 		return toMeDto(found.user, session.tenantId, found.memberships);
+	}
+
+	/**
+	 * Moves the session to another of the user's active stores. The session
+	 * is replaced: use the new cookie and fetch a new CSRF token.
+	 */
+	@Post("tenant")
+	@HttpCode(200)
+	@UseGuards(SessionGuard)
+	@ApiCookieAuth(SESSION_SECURITY)
+	@ApiBadRequestResponse({ description: "Missing or malformed tenantId." })
+	@ApiUnauthorizedResponse({ description: "No valid session." })
+	@ApiForbiddenResponse({
+		description:
+			"Invalid CSRF token, or not a member of that active store.",
+	})
+	async switchTenant(
+		@Body() body: SwitchTenantDto,
+		@CurrentSession() session: Session,
+		@Req() request: FastifyRequest,
+		@Res({ passthrough: true }) reply: FastifyReply,
+	): Promise<MeDto> {
+		const tenantId =
+			typeof body?.tenantId === "string"
+				? TenantId.tryParse(body.tenantId)
+				: null;
+		if (!tenantId) {
+			throw new BadRequestException("tenantId must be a store id");
+		}
+		const found = await this.auth.load(session.userId);
+		if (!found?.memberships.some((m) => m.tenantId === tenantId)) {
+			throw new ForbiddenException("No access to this store");
+		}
+		await this.sessions.destroy(request, reply);
+		await this.sessions.create(reply, { userId: session.userId, tenantId });
+		return toMeDto(found.user, tenantId, found.memberships);
 	}
 
 	/** Ends the current session. */

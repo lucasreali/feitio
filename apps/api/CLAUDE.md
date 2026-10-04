@@ -66,7 +66,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 ## Admin panel access
 
 - Panel routes use `@PanelScoped()` or `@PanelScoped("owner")` (`src/auth/`), and their module imports `AuthModule`. It runs `SessionGuard` (session and CSRF) and then `PanelGuard`, which checks on every request that the user is still a member of the session's tenant and that the tenant is active (401 otherwise), and that the member has the route's role (403). The handler then runs in `TenantContext` with the session's tenant, like a `@TenantScoped()` route.
-- `POST /auth/login` starts a session in the user's first active store and returns `MeDto`; wrong credentials, unknown e-mails and users without an active store get the same 401, and unknown e-mails still pay for a password check (decoy hash). `POST /auth/logout` and `POST /auth/logout-all` need the session and a CSRF token. `GET /auth/me` (`@PanelScoped()`) returns the same `MeDto`, which never carries the password hash or the CPF.
+- `POST /auth/login` starts a session in the user's first active store and returns `MeDto`; wrong credentials, unknown e-mails and users without an active store get the same 401, and unknown e-mails still pay for a password check (decoy hash). `POST /auth/logout` and `POST /auth/logout-all` need the session and a CSRF token. `GET /auth/me` (`@PanelScoped()`) returns the same `MeDto`, which never carries the password hash or the CPF. `POST /auth/tenant` moves the session to another of the user's active stores by replacing it: the client gets a new cookie and must fetch a new CSRF token.
 - `MembershipsRepository` reads a user's memberships with `app.user_id` set, before a tenant is chosen.
 
 ## SOLID
