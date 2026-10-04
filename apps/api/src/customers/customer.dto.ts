@@ -1,4 +1,5 @@
 import { CustomerGroupRefDto } from "./customer-group.dto.js";
+import { CustomerEventDto } from "./customer-history.dto.js";
 
 export class AddressDto {
 	id: string;
@@ -34,6 +35,19 @@ export class CustomerDto {
 	addresses: AddressDto[];
 	/** By name. */
 	groups: CustomerGroupRefDto[];
+}
+
+/** Everything the store keeps about a customer, for an LGPD access request. */
+export class CustomerExportDto {
+	exportedAt: Date;
+	customer: CustomerSummaryDto & {
+		taxId: string | null;
+		updatedAt: Date;
+	};
+	addresses: AddressDto[];
+	groups: CustomerGroupRefDto[];
+	/** Newest first. */
+	history: CustomerEventDto[];
 }
 
 export class CustomerSummaryDto {

@@ -3,11 +3,13 @@ import {
 	Controller,
 	Delete,
 	Get,
+	HttpCode,
 	NotFoundException,
 	Param,
 	Patch,
 	Post,
 	Query,
+	Res,
 } from "@nestjs/common";
 import {
 	ApiBadRequestResponse,
@@ -15,6 +17,7 @@ import {
 	ApiNotFoundResponse,
 	ApiQuery,
 } from "@nestjs/swagger";
+import type { FastifyReply } from "fastify";
 import { PanelScoped } from "../auth/panel-scoped.decorator.js";
 import {
 	CustomerAddressId,
@@ -34,6 +37,7 @@ import {
 	CreateAddressDto,
 	CreateCustomerDto,
 	CustomerDto,
+	CustomerExportDto,
 	CustomerPageDto,
 	UpdateAddressDto,
 	UpdateCustomerDto,
@@ -49,6 +53,7 @@ import {
 	parseNewAddress,
 	parseNewCustomer,
 } from "./customer-input.js";
+import { CustomerSessions } from "./customer-sessions.js";
 import { CustomersRepository } from "./customers.repository.js";
 
 const SEARCH_MAX = 120;
@@ -57,7 +62,10 @@ const NOTE_MAX = 2000;
 /** The store's customers and their address books. */
 @Controller("admin/customers")
 export class CustomersAdminController {
-	constructor(private readonly customers: CustomersRepository) {}
+	constructor(
+		private readonly customers: CustomersRepository,
+		private readonly sessions: CustomerSessions,
+	) {}
 
 	/** Newest first. */
 	@Get()
@@ -218,6 +226,42 @@ export class CustomersAdminController {
 			throw new NotFoundException();
 		}
 		return this.found(customerId);
+	}
+
+	/** Everything the store keeps about the customer, as a JSON file (LGPD access request). */
+	@Get(":id/export")
+	@PanelScoped()
+	@ApiNotFoundResponse({ description: "The store has no such customer." })
+	async export(
+		@Param("id") id: string,
+		@Res({ passthrough: true }) reply: FastifyReply,
+	): Promise<CustomerExportDto> {
+		const customerId = pathId(id, CustomerId);
+		const data = await this.customers.export(customerId);
+		if (!data) {
+			throw new NotFoundException();
+		}
+		reply.header(
+			"content-disposition",
+			`attachment; filename="customer-${customerId}.json"`,
+		);
+		return data;
+	}
+
+	/**
+	 * Erases the customer, with their addresses, groups and history, and ends
+	 * their sessions in the store (LGPD deletion request). Cannot be undone.
+	 */
+	@Delete(":id")
+	@HttpCode(204)
+	@PanelScoped("owner")
+	@ApiNotFoundResponse({ description: "The store has no such customer." })
+	async erase(@Param("id") id: string): Promise<void> {
+		const customerId = pathId(id, CustomerId);
+		if (!(await this.customers.erase(customerId))) {
+			throw new NotFoundException();
+		}
+		await this.sessions.destroyAll(customerId);
 	}
 
 	/** What happened to the customer, newest first. */

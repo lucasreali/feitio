@@ -35,6 +35,7 @@ import {
 import type {
 	AddressDto,
 	CustomerDto,
+	CustomerExportDto,
 	CustomerSummaryDto,
 } from "./customer.dto.js";
 import type { CustomerEventDto } from "./customer-history.dto.js";
@@ -436,6 +437,42 @@ export class CustomersRepository {
 			});
 			return true;
 		});
+	}
+
+	/** Everything the store keeps about the customer; undefined when it has no such customer. */
+	async export(id: CustomerId): Promise<CustomerExportDto | undefined> {
+		const customer = await this.find(id);
+		if (!customer) {
+			return undefined;
+		}
+		const { addresses, groups, ...profile } = customer;
+		return this.tenantDb.run(async (tx) => {
+			const [{ updatedAt }] = await tx
+				.select({ updatedAt: customers.updatedAt })
+				.from(customers)
+				.where(eq(customers.id, id));
+			return {
+				exportedAt: new Date(),
+				customer: { ...profile, updatedAt },
+				addresses,
+				groups,
+				history: (await history(tx, id)).items,
+			};
+		});
+	}
+
+	/**
+	 * Deletes the customer with their addresses, groups and history. false
+	 * when the tenant has no such customer.
+	 */
+	async erase(id: CustomerId): Promise<boolean> {
+		const rows = await this.tenantDb.run((tx) =>
+			tx
+				.delete(customers)
+				.where(eq(customers.id, id))
+				.returning({ id: customers.id }),
+		);
+		return rows.length > 0;
 	}
 
 	/** Newest first; undefined when the tenant has no such customer. */

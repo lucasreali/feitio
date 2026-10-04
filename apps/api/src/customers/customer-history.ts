@@ -35,18 +35,17 @@ export async function recordEvent(
 	return toDto(event);
 }
 
-/** The customer's history, newest first. */
+/** The customer's history, newest first: one page, or all of it. */
 export async function history(
 	tx: TenantTransaction,
 	customerId: CustomerId,
-	page: Page,
+	page?: Page,
 ): Promise<{ items: CustomerEventDto[]; total: number }> {
+	const query = entries(tx)
+		.where(eq(customerEvents.customerId, customerId))
+		.orderBy(desc(customerEvents.createdAt), desc(customerEvents.id));
 	const [items, [{ total }]] = await Promise.all([
-		entries(tx)
-			.where(eq(customerEvents.customerId, customerId))
-			.orderBy(desc(customerEvents.createdAt), desc(customerEvents.id))
-			.limit(page.pageSize)
-			.offset(page.offset),
+		page ? query.limit(page.pageSize).offset(page.offset) : query,
 		tx
 			.select({ total: count() })
 			.from(customerEvents)
