@@ -26,6 +26,7 @@ Rules for the API. The root `CLAUDE.md` (structure, commands, dependencies, TDD,
   - `feitio_app` (`DATABASE_URL`) is the API's user: it owns no table and cannot bypass RLS. `pnpm db:roles` creates or updates it from the name and password in `DATABASE_URL`.
   - The owner (`MIGRATION_DATABASE_URL`) runs `db:roles`, `db:migrate` and `db:seed`. On a new database, run `db:roles` before `db:migrate`.
 - Supabase: session pooler (port 5432; the 6543 transaction pooler breaks drizzle-kit's advisory lock), with `sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt`. The CA lives in `certs/` (gitignored); the path is relative to `apps/api`.
+- Entity ids are UUID v7 (time-ordered). The database generates them with `uuid_generate_v7()` (migration 0005; PostgreSQL 17 has no built-in v7), and `tenants` refuses other versions on new rows (`CHECK ... NOT VALID`, so older v4 rows stay). In code, ids are branded types in `src/domain/ids.ts` with `generate()`. Never derive uniqueness from an id's prefix: in v7 it is the creation time.
 - Vendor neutrality: Supabase is only plain PostgreSQL and S3, and nothing here is Supabase-specific. Never add `supabase-js` or another vendor SDK; switching providers must only change env vars.
 
 ## Tenants and data isolation
@@ -35,6 +36,7 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Store and checkout routes use `@TenantScoped()` (`src/tenancy/`): it requires `X-Tenant` (the tenant's slug), resolves an active tenant (missing header: 400; unknown or inactive: the same 404) and runs the handler in `TenantContext` (`AsyncLocalStorage`), so the tenant is never passed around.
 - Business tables are queried only through `TenantDatabase.run((tx) => ...)`, which opens a transaction and sets `app.tenant_id` with `set_config(..., true)` (transaction-local, safe with the pooler). It throws outside a tenant context. The raw `DATABASE` client is only for tenant-agnostic reads (health check, tenant resolution); on business tables it sees no rows.
 - A new business table is born with:
+  - an `id` of type `uuid` defaulting to `uuid_generate_v7()`, the same version check as `tenants`, and its own branded id type in `src/domain/ids.ts`;
   - a `tenant_id` column, `NOT NULL`, referencing `tenants`;
   - `tenantIsolation("<table>")` (`src/database/tenant-isolation.ts`) and `.enableRLS()` in its definition;
   - a custom migration with `FORCE ROW LEVEL SECURITY` and an explicit `GRANT ... TO feitio_app`;
@@ -97,7 +99,23 @@ Prefer the direct solution when an abstraction would have a single implementatio
 - `FileStorage`: one interface.
 - `Valkey`: the full client.
 
+## Domain types for primitives
+
+Wrapping primitives pays off for some values and weighs on the code if applied to everything.
+
+- **Always wrap:**
+  - **Money:** never a loose number. Its type holds the amount as an integer number of cents and owns the operations. There is no money in the code yet; the type comes with the first price.
+  - **Identifiers:** each entity has its own id type, so a tenant id cannot go where a user, session or order id is expected (`TenantId`, `UserId`, `SessionId`).
+  - **Slugs and other public identifiers:** the type guarantees a valid format when created (`TenantSlug`).
+- **Do not wrap by default:** free text (names, descriptions, messages) and plain numbers (quantities, counters, positions).
+- **Other cases:** wrap when the value has a format or validation rule, can be confused with another value of the same primitive, or carries its own operations. Keep the primitive when a new type would only add ceremony. Weigh type safety, clarity, simplicity and conversion cost, and leave the reason in a short comment when you keep a primitive that the rule would wrap.
+- **How:**
+  - Ids and slugs are branded types (`src/domain/`): plain strings at runtime, so they cost nothing and serialize as-is, but TypeScript keeps them apart.
+  - Create them only through `parse` (throws on invalid input) or `tryParse` (returns null).
+  - Drizzle columns declare them with `$type<...>()`, so values read from the database are already typed.
+- **Boundary:** domain types live inside the API. Routes still take and return primitives, and the Swagger spec does not change.
+
 ## Tests
 
-- Unit: `src/**/*.spec.ts` (`pnpm test --project api`).
+- Unit: `*.spec.ts` next to the code, in `src/` or `scripts/` (`pnpm test --project api`).
 - Integration and e2e: `test/*.e2e-spec.ts` (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env`. Tenant tests create random tenants as the owner and delete them at the end.
