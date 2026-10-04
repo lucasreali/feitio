@@ -10,6 +10,10 @@ Rules for the API. The root `CLAUDE.md` (structure, commands, dependencies, TDD,
 - OpenAPI comes from code: the `@nestjs/swagger` CLI plugin (`nest-cli.json`) reads controllers and `*.dto.ts` files at `nest build`/`nest start`, so DTOs need no `@ApiProperty` and JSDoc becomes descriptions. The plugin does not run under Vitest. The API serves `/openapi.json` and Swagger UI at `/docs`.
 - `.env` lives in `apps/api` and is read with `process.loadEnvFile()` by `main.ts`, `drizzle.config.ts`, `scripts/` and the e2e Vitest config. Each module fails at startup with a clear message when a variable it needs is missing (`DATABASE_URL`, `STORAGE_*`, `VALKEY_URL`, `COOKIE_SECRET`); read required variables with `requireEnv` (`src/config/env.ts`).
 
+## Adopting libraries
+
+The root rule applies. Here a library must also work with NestJS on Fastify (Express packages do not), and an external vendor's SDK sits behind an interface we own, in an adapter (as `S3FileStorage` behind `FileStorage`).
+
 ## Fastify plugins
 
 - `@fastify/helmet`: default policy on every response. Only routes under `/docs` drop `upgrade-insecure-requests` (Swagger UI over plain HTTP), through an `onRoute` hook registered before helmet. Do not relax it anywhere else.

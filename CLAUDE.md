@@ -34,6 +34,37 @@ Not created yet: the root `dev` and `fix` scripts.
 - `pnpm-workspace.yaml` sets `saveExact` and `minimumReleaseAge` (7 days): versions are pinned, and a version published less than 7 days ago is refused (`ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`). Pin the newest older version instead of relaxing the policy.
 - Packages with install scripts must be listed in `allowBuilds` (`true` to run, `false` to deny).
 
+## Adopting libraries
+
+Installing a new library is always the developer's decision. This applies to every agent and developer and overrides an agent's autonomy. Each project's `CLAUDE.md` adds its own criteria.
+
+1. **Need.** Before proposing a library, check in this order whether the need is already met by:
+   - the language and the platform (Node, the browser);
+   - what the project already has installed, including the framework in use;
+   - a little code of our own, simple and testable.
+
+   Propose a library only when none of these solves it well. Always use an established library, never our own code, for cryptography, password hashing, authentication protocols, payments and parsing complex formats (platform implementations such as `node:crypto` count as established). Never propose a library for the convenience of one function, or one that overlaps a library the project already uses.
+2. **Choice.** Compare at least two alternatives, plus using no library, on:
+   - maintenance: recent releases, answered issues, not abandoned or deprecated;
+   - adoption and maintainer: widely used, maintained by a known organization or team;
+   - stack fit: ES modules, bundled TypeScript types, the Node version in `.nvmrc`;
+   - official ecosystem packages over community ports;
+   - license: permissive (MIT, Apache, BSD, ISC); flag any other;
+   - security: no open known vulnerability, few transitive dependencies, care with install scripts;
+   - weight: final size and performance impact.
+
+   Read the library's current docs instead of relying on memory: versions change.
+3. **Ask first.** Before installing any new library, stop and present:
+   - the need, and why the options in item 1 do not solve it;
+   - the alternatives compared, on the criteria in item 2;
+   - the recommendation, and what is lost by choosing it;
+   - which project it goes into, and whether it is a production or development dependency.
+
+   Install only after explicit approval. The same holds for replacing a library, removing one or bumping its major version. The only exception is the types package (`@types/...`) of an approved library.
+4. **After approval.**
+   - Install it in the project that uses it; the root only gets tooling every project uses.
+   - If the library sets a convention (for example, "dates always with X"), add one line to that project's `CLAUDE.md`.
+
 ## Biome and Vitest
 
 - One Biome config, `biome.json` at the root. It ignores gitignored files, `**/.claude`, `apps/api/drizzle` and `**/routeTree.gen.ts`.
