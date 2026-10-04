@@ -1,5 +1,11 @@
-import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import {
+	FastifyAdapter,
+	type NestFastifyApplication,
+} from "@nestjs/platform-fastify";
+import { Test } from "@nestjs/testing";
 import pg from "pg";
+import { AppModule } from "../src/app.module.js";
+import { configureApp } from "../src/app.setup.js";
 import { hashPassword } from "../src/auth/password.js";
 import type { MembershipRole } from "../src/database/schemas/memberships.js";
 import { Cpf } from "../src/domain/cpf.js";
@@ -159,4 +165,51 @@ export async function signIn(
 		},
 		headers: { "x-csrf-token": csrf.json<{ token: string }>().token },
 	};
+}
+
+/** The whole API, configured like main.ts, ready for app.inject(). */
+export async function startApp(): Promise<NestFastifyApplication> {
+	const moduleRef = await Test.createTestingModule({
+		imports: [AppModule],
+	}).compile();
+	const app = moduleRef.createNestApplication<NestFastifyApplication>(
+		new FastifyAdapter(),
+	);
+	await configureApp(app);
+	await app.init();
+	await app.getHttpAdapter().getInstance().ready();
+	return app;
+}
+
+/** JSON requests to panel routes as a signed-in user. */
+export function panelClient(app: NestFastifyApplication, auth: PanelAuth) {
+	const call =
+		(method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE") =>
+		(url: string, payload?: unknown) =>
+			app.inject({
+				method,
+				url,
+				payload: payload as object | undefined,
+				cookies: auth.cookies,
+				headers: auth.headers,
+			});
+	return {
+		get: call("GET"),
+		post: call("POST"),
+		patch: call("PATCH"),
+		put: call("PUT"),
+		delete: call("DELETE"),
+	};
+}
+
+export type PanelClient = ReturnType<typeof panelClient>;
+
+/** GET requests to store routes of a tenant. */
+export function storeClient(app: NestFastifyApplication, tenant: TestTenant) {
+	return (url: string) =>
+		app.inject({
+			method: "GET",
+			url,
+			headers: { "x-tenant": tenant.slug },
+		});
 }

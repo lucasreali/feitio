@@ -1,4 +1,16 @@
-import { MembershipId, TenantId, UserId } from "./ids.js";
+import {
+	AssetId,
+	CollectionId,
+	FacetId,
+	FacetValueId,
+	MembershipId,
+	ProductId,
+	ProductOptionGroupId,
+	ProductOptionId,
+	ProductVariantId,
+	TenantId,
+	UserId,
+} from "./ids.js";
 
 import { uuidv7 } from "./uuid-v7.js";
 
@@ -9,6 +21,14 @@ describe.each([
 	["TenantId", TenantId],
 	["UserId", UserId],
 	["MembershipId", MembershipId],
+	["AssetId", AssetId],
+	["ProductId", ProductId],
+	["ProductOptionGroupId", ProductOptionGroupId],
+	["ProductOptionId", ProductOptionId],
+	["ProductVariantId", ProductVariantId],
+	["FacetId", FacetId],
+	["FacetValueId", FacetValueId],
+	["CollectionId", CollectionId],
 ])("%s", (name, Id) => {
 	it("accepts a UUID v7 and keeps it as the same string", () => {
 		expect(Id.parse(uuid)).toBe(uuid);
@@ -28,6 +48,14 @@ it.each([
 	["TenantId", TenantId],
 	["UserId", UserId],
 	["MembershipId", MembershipId],
+	["AssetId", AssetId],
+	["ProductId", ProductId],
+	["ProductOptionGroupId", ProductOptionGroupId],
+	["ProductOptionId", ProductOptionId],
+	["ProductVariantId", ProductVariantId],
+	["FacetId", FacetId],
+	["FacetValueId", FacetValueId],
+	["CollectionId", CollectionId],
 ])("%s.generate creates a valid UUID v7 id", (_name, Id) => {
 	const id = Id.generate();
 	expect(Id.parse(id)).toBe(id);

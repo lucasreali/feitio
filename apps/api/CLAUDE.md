@@ -42,7 +42,9 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
   - a custom migration with `FORCE ROW LEVEL SECURITY` and an explicit `GRANT ... TO feitio_app`;
   - an integration test proving isolation between tenants.
 
-  There are no default privileges: a table without its grant stays closed to the API.
+  - references to other business tables as composite foreign keys, `(tenant_id, x_id)` to a `(tenant_id, id)` unique key of the parent: foreign key checks skip RLS, so a plain `x_id` would accept another tenant's id. `test/database/catalog-schema.e2e-spec.ts` fails for any foreign key between two tables with `tenant_id` that leaves it out, and for any such table without forced RLS.
+
+  There are no default privileges: a table without its grant stays closed to the API. Link tables (`product_images`, `collection_products`...) have a composite primary key instead of an `id`.
 - `tenants` has RLS with a read-only policy for `feitio_app`; only the owner writes it.
 - `users` (admin panel users) is a platform table like `tenants`: one user can belong to several tenants, the owner writes it and `feitio_app` only reads it. E-mails are stored lowercase (`Email` in `src/domain/email.ts`, plus a `CHECK`), the CPF is required, unique and stored as its 11 digits (`Cpf` in `src/domain/cpf.ts` checks the check digits), and passwords only as scrypt hashes (`src/auth/password.ts`, `node:crypto`, no dependency; 16 MiB per hash, so keep the low-memory cost).
 - `memberships` ties a user to a tenant with a role (`owner` or `staff`). Besides `tenantIsolation`, it has a read-only policy on `app.user_id` (`currentUserId`), so sign-in can list a user's tenants before one is chosen; writes stay within the current tenant.
@@ -117,9 +119,9 @@ Prefer the direct solution when an abstraction would have a single implementatio
 Wrapping primitives pays off for some values and weighs on the code if applied to everything.
 
 - **Always wrap:**
-  - **Money:** never a loose number. Its type holds the amount as an integer number of cents and owns the operations. There is no money in the code yet; the type comes with the first price.
+  - **Money:** never a loose number. `Money` (`src/domain/money.ts`) is the amount as an integer number of cents and owns the operations, added as callers need them. Routes take and return prices as integer cents.
   - **Identifiers:** each entity has its own id type, so a tenant id cannot go where a user, session or order id is expected (`TenantId`, `UserId`, `SessionId`).
-  - **Slugs and other public identifiers:** the type guarantees a valid format when created (`TenantSlug`).
+  - **Slugs and other public identifiers:** the type guarantees a valid format when created (`TenantSlug`, `Slug` for products and collections, `Sku`).
 - **Do not wrap by default:** free text (names, descriptions, messages) and plain numbers (quantities, counters, positions).
 - **Other cases:** wrap when the value has a format or validation rule, can be confused with another value of the same primitive, or carries its own operations. Keep the primitive when a new type would only add ceremony. Weigh type safety, clarity, simplicity and conversion cost, and leave the reason in a short comment when you keep a primitive that the rule would wrap.
 - **How:**

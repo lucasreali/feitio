@@ -29,3 +29,31 @@ export const MembershipId = entityId("MembershipId");
 /** Id of an asset: an image of the store's catalog in the public bucket. */
 export type AssetId = Brand<string, "AssetId">;
 export const AssetId = entityId("AssetId");
+
+/** Id of a product of the store's catalog. */
+export type ProductId = Brand<string, "ProductId">;
+export const ProductId = entityId("ProductId");
+
+/** Id of a product's option group, such as Size. */
+export type ProductOptionGroupId = Brand<string, "ProductOptionGroupId">;
+export const ProductOptionGroupId = entityId("ProductOptionGroupId");
+
+/** Id of an option of a group, such as M. */
+export type ProductOptionId = Brand<string, "ProductOptionId">;
+export const ProductOptionId = entityId("ProductOptionId");
+
+/** Id of a product variant: what is sold, stocked and ordered. */
+export type ProductVariantId = Brand<string, "ProductVariantId">;
+export const ProductVariantId = entityId("ProductVariantId");
+
+/** Id of a facet: an attribute for filtering, such as Brand. */
+export type FacetId = Brand<string, "FacetId">;
+export const FacetId = entityId("FacetId");
+
+/** Id of a facet value, such as Nike. */
+export type FacetValueId = Brand<string, "FacetValueId">;
+export const FacetValueId = entityId("FacetValueId");
+
+/** Id of a collection of products. */
+export type CollectionId = Brand<string, "CollectionId">;
+export const CollectionId = entityId("CollectionId");

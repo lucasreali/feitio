@@ -1,5 +1,17 @@
 import { assets } from "./schemas/assets.js";
+import { collectionFacetValues } from "./schemas/collection-facet-values.js";
+import { collectionProducts } from "./schemas/collection-products.js";
+import { collections } from "./schemas/collections.js";
+import { facetValues } from "./schemas/facet-values.js";
+import { facets } from "./schemas/facets.js";
 import { memberships } from "./schemas/memberships.js";
+import { productFacetValues } from "./schemas/product-facet-values.js";
+import { productImages } from "./schemas/product-images.js";
+import { productOptionGroups } from "./schemas/product-option-groups.js";
+import { productOptions } from "./schemas/product-options.js";
+import { productVariantOptions } from "./schemas/product-variant-options.js";
+import { productVariants } from "./schemas/product-variants.js";
+import { products } from "./schemas/products.js";
 import { storeSettings } from "./schemas/store-settings.js";
 import { tenants } from "./schemas/tenants.js";
 import { users } from "./schemas/users.js";
@@ -11,4 +23,16 @@ export const schemas = {
 	users,
 	memberships,
 	assets,
+	products,
+	productImages,
+	productOptionGroups,
+	productOptions,
+	productVariants,
+	productVariantOptions,
+	facets,
+	facetValues,
+	productFacetValues,
+	collections,
+	collectionProducts,
+	collectionFacetValues,
 };

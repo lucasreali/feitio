@@ -99,6 +99,27 @@
       "when": 1791138565198,
       "tag": "0013_assets_access",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791139544633,
+      "tag": "0014_assets_tenant_id_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791139545170,
+      "tag": "0015_create_catalog",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1791139599644,
+      "tag": "0016_catalog_access",
+      "breakpoints": true
     }
   ]
 }
