@@ -49,7 +49,7 @@ Equivale a Administrators, Roles e Sessions do Vendure.
 
 - [x] Usuários, com e-mail único, CPF e senha em hash
 - [x] Vínculo entre usuário e tenant, com papel (dono ou equipe)
-- [ ] Login, logout e encerramento de todas as sessões
+- [x] Login, logout e encerramento de todas as sessões
 - [ ] Troca de loja ativa para usuário com mais de um vínculo
 - [ ] Rota de dados do usuário logado
 - [ ] Limite de tentativas de login

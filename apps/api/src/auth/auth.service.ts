@@ -1,0 +1,54 @@
+import { randomUUID } from "node:crypto";
+import { Injectable } from "@nestjs/common";
+import { Email } from "../domain/email.js";
+import {
+	type ActiveMembership,
+	MembershipsRepository,
+} from "./memberships.repository.js";
+import { hashPassword, verifyPassword } from "./password.js";
+import { UsersRepository } from "./users.repository.js";
+
+type User = NonNullable<Awaited<ReturnType<UsersRepository["findById"]>>>;
+
+export interface Authenticated {
+	user: User;
+	/** At least one. */
+	memberships: ActiveMembership[];
+}
+
+// Compared against when the e-mail is unknown, so a miss costs as much as a
+// wrong password and response times do not reveal which e-mails exist.
+let decoyHash: Promise<string> | undefined;
+const decoy = () => {
+	decoyHash ??= hashPassword(randomUUID());
+	return decoyHash;
+};
+
+@Injectable()
+export class AuthService {
+	constructor(
+		private readonly users: UsersRepository,
+		private readonly memberships: MembershipsRepository,
+	) {}
+
+	/**
+	 * The user behind these credentials with their active stores, or null
+	 * when the e-mail or password is wrong or the user has no active store.
+	 */
+	async authenticate(
+		email: string,
+		password: string,
+	): Promise<Authenticated | null> {
+		const address = Email.tryParse(email);
+		const user = address ? await this.users.findByEmail(address) : null;
+		const matches = await verifyPassword(
+			password,
+			user?.passwordHash ?? (await decoy()),
+		);
+		if (!user || !matches) {
+			return null;
+		}
+		const memberships = await this.memberships.listActive(user.id);
+		return memberships.length > 0 ? { user, memberships } : null;
+	}
+}
