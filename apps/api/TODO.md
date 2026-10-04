@@ -77,12 +77,12 @@ Equivale a Product, ProductVariant, ProductOption, Facet, Collection e Asset.
 
 Equivale a StockLocation, StockLevel e StockMovement.
 
-- [ ] Local de estoque (um por loja no início, com o modelo aceitando mais)
-- [ ] Saldo por variante: disponível e reservado
-- [ ] Movimentações registradas: ajuste, reserva, baixa por venda, liberação e devolução
-- [ ] Política por variante: controlar estoque ou não, e permitir venda sem saldo
-- [ ] Trava contra venda dupla da última unidade
-- [ ] Limite de estoque baixo, para aviso no painel
+- [x] Local de estoque (um por loja no início, com o modelo aceitando mais)
+- [x] Saldo por variante: disponível e reservado
+- [x] Movimentações registradas: ajuste, reserva, baixa por venda, liberação e devolução
+- [x] Política por variante: controlar estoque ou não, e permitir venda sem saldo
+- [x] Trava contra venda dupla da última unidade
+- [x] Limite de estoque baixo, para aviso no painel
 
 ## Fase 4: Clientes
 

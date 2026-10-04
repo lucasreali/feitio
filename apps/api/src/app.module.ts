@@ -6,6 +6,7 @@ import { FacetsModule } from "./facets/facets.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { ProductsModule } from "./products/products.module.js";
 import { SessionModule } from "./session/session.module.js";
+import { StockModule } from "./stock/stock.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
 
@@ -18,6 +19,7 @@ import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
 		HealthModule,
 		ProductsModule,
 		SessionModule,
+		StockModule,
 		StorageModule,
 		StoreSettingsModule,
 	],

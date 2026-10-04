@@ -72,6 +72,14 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - Store routes show only `active` products: `GET /store/products` (`ProductList`, one SQL query per page) filters by collection slug and by facet values (any value of a facet, every facet sent; an unknown value matches nothing), sorts by `newest`, `name`, `price-asc`/`price-desc` (each product's lowest variant price) or `position` (a manual collection's order, its default), and pages with `page`/`pageSize` (`parsePage`). `GET /store/products/:slug`, `/store/collections` and `/store/facets` complete the catalog for the stores.
 - Panel sub-resource routes (options, variants) answer with the whole `ProductDto`. Database constraint violations become HTTP errors through `translateConstraints` (`src/database/pg-error.ts`), keyed by constraint name or SQLSTATE.
 
+## Stock
+
+- Stock (`src/stock/`) lives in `stock_levels`, per variant and location: `available` (can be sold) and `reserved` (held by orders awaiting payment); units in hand are their sum, and no row means nothing in stock. Each store has one default location (`stock_locations.is_default`, created with the first stock write); the model accepts more, and reads sum every location.
+- Levels change only through `moveStock(tx, kind, lines)` (`src/stock/stock-ledger.ts`), inside the caller's transaction, which records one `stock_movements` row per change. Movements are append-only: `feitio_app` cannot update or delete them. Kinds: `adjustment` (signed, from the panel), `reservation` (order awaiting payment), `sale` (paid), `release` (cancelled or expired) and `return`.
+- No overselling: each level changes in one conditional `UPDATE`, which PostgreSQL re-checks after a concurrent one, so two orders never take the last unit. Never read a level and write it back. `available` goes below zero only for a reservation of a variant that allows backorders; `reserved` never does (409). Lines lock in variant id order, so concurrent orders do not deadlock.
+- Policy on `product_variants`: `track_stock` (default true; order movements skip untracked variants, adjustments always apply), `allow_backorder` and `low_stock_threshold` (null: never low).
+- Panel routes: `GET` and `PATCH /admin/variants/:id/stock` (levels and policy), `POST /admin/variants/:id/stock/adjustments`, `GET /admin/variants/:id/stock/movements` (newest first, paged) and `GET /admin/stock/low` (tracked variants at or below their threshold, archived products left out, fewest units first).
+
 ## Valkey and sessions
 
 - Valkey is the in-memory store; there is no Redis. `ValkeyModule` provides the client (ioredis speaks the protocol); inject `Valkey` from `src/valkey/valkey.ts`. The server runs with `noeviction` (BullMQ needs it), so every cache key needs a TTL, and BullMQ queues must open their own connections with `maxRetriesPerRequest: null`.
