@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+	boolean,
 	check,
 	foreignKey,
 	integer,
@@ -45,6 +46,12 @@ export const productVariants = pgTable(
 		assetId: uuid("asset_id").$type<AssetId>(),
 		/** Order within the product. */
 		position: integer("position").notNull(),
+		/** false: sold without counting stock. */
+		trackStock: boolean("track_stock").notNull().default(true),
+		/** Sold past zero (backorder) when stock is tracked. */
+		allowBackorder: boolean("allow_backorder").notNull().default(false),
+		/** The panel warns when available stock is at or below it; null: never. */
+		lowStockThreshold: integer("low_stock_threshold"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),
@@ -57,6 +64,11 @@ export const productVariants = pgTable(
 		unique("product_variants_tenant_product_id_unique").on(
 			table.tenantId,
 			table.productId,
+			table.id,
+		),
+		// Target of the stock tables' composite foreign keys.
+		unique("product_variants_tenant_id_id_unique").on(
+			table.tenantId,
 			table.id,
 		),
 		unique("product_variants_tenant_sku_unique").on(
@@ -74,6 +86,10 @@ export const productVariants = pgTable(
 			foreignColumns: [assets.tenantId, assets.id],
 		}),
 		check("product_variants_price_not_negative", sql`${table.price} >= 0`),
+		check(
+			"product_variants_low_stock_threshold_not_negative",
+			sql`${table.lowStockThreshold} >= 0`,
+		),
 		check(
 			"product_variants_id_uuid_v7",
 			sql`coalesce(uuid_extract_version(${table.id}), 0) = 7`,

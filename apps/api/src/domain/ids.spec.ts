@@ -8,6 +8,8 @@ import {
 	ProductOptionGroupId,
 	ProductOptionId,
 	ProductVariantId,
+	StockLocationId,
+	StockMovementId,
 	TenantId,
 	UserId,
 } from "./ids.js";
@@ -29,6 +31,8 @@ describe.each([
 	["FacetId", FacetId],
 	["FacetValueId", FacetValueId],
 	["CollectionId", CollectionId],
+	["StockLocationId", StockLocationId],
+	["StockMovementId", StockMovementId],
 ])("%s", (name, Id) => {
 	it("accepts a UUID v7 and keeps it as the same string", () => {
 		expect(Id.parse(uuid)).toBe(uuid);

@@ -127,6 +127,27 @@
       "when": 1791140094117,
       "tag": "0017_catalog_positions",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791144722616,
+      "tag": "0018_variant_stock_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791144723153,
+      "tag": "0019_create_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791144730093,
+      "tag": "0020_stock_access",
+      "breakpoints": true
     }
   ]
 }

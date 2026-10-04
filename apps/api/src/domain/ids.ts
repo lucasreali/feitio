@@ -57,3 +57,11 @@ export const FacetValueId = entityId("FacetValueId");
 /** Id of a collection of products. */
 export type CollectionId = Brand<string, "CollectionId">;
 export const CollectionId = entityId("CollectionId");
+
+/** Id of a place where a store keeps stock. */
+export type StockLocationId = Brand<string, "StockLocationId">;
+export const StockLocationId = entityId("StockLocationId");
+
+/** Id of a recorded change to a variant's stock. */
+export type StockMovementId = Brand<string, "StockMovementId">;
+export const StockMovementId = entityId("StockMovementId");

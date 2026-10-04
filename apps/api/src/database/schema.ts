@@ -12,6 +12,9 @@ import { productOptions } from "./schemas/product-options.js";
 import { productVariantOptions } from "./schemas/product-variant-options.js";
 import { productVariants } from "./schemas/product-variants.js";
 import { products } from "./schemas/products.js";
+import { stockLevels } from "./schemas/stock-levels.js";
+import { stockLocations } from "./schemas/stock-locations.js";
+import { stockMovements } from "./schemas/stock-movements.js";
 import { storeSettings } from "./schemas/store-settings.js";
 import { tenants } from "./schemas/tenants.js";
 import { users } from "./schemas/users.js";
@@ -35,4 +38,7 @@ export const schemas = {
 	collections,
 	collectionProducts,
 	collectionFacetValues,
+	stockLocations,
+	stockLevels,
+	stockMovements,
 };
