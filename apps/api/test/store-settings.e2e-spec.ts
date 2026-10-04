@@ -10,6 +10,7 @@ import {
 	type StoreTheme,
 	storeSettings,
 } from "../src/database/schemas/store-settings.js";
+import { HttpsUrl } from "../src/domain/https-url.js";
 import { TenantId } from "../src/domain/ids.js";
 import { TenantSlug } from "../src/domain/tenant-slug.js";
 import { TenantContext } from "../src/tenancy/tenant-context.js";
@@ -20,7 +21,11 @@ describe("GET /store/settings (e2e)", () => {
 	let app: NestFastifyApplication;
 	let owner: pg.Client;
 
-	const tenant = (status: "active" | "inactive", theme: StoreTheme) => {
+	// Plain strings here: the API validates themes on write, not on read.
+	const tenant = (
+		status: "active" | "inactive",
+		theme: Record<string, string>,
+	) => {
 		const id = TenantId.generate();
 		const slug = TenantSlug.parse(`test-${id.slice(-12)}`);
 		return { id, slug, status, displayName: `Store ${slug}`, theme };
@@ -33,7 +38,7 @@ describe("GET /store/settings (e2e)", () => {
 	const withUnknownKeys = tenant("active", {
 		primary: "#123456",
 		"font-family": "Comic Sans",
-	} as StoreTheme);
+	});
 
 	const getSettings = (headers: Record<string, string> = {}) =>
 		app.inject({ method: "GET", url: "/store/settings", headers });
@@ -73,8 +78,10 @@ describe("GET /store/settings (e2e)", () => {
 					tx.insert(storeSettings).values({
 						tenantId: t.id,
 						displayName: t.displayName,
-						logoUrl: `https://cdn.example.com/${t.slug}.png`,
-						theme: t.theme,
+						logoUrl: HttpsUrl.parse(
+							`https://cdn.example.com/${t.slug}.png`,
+						),
+						theme: t.theme as StoreTheme,
 					}),
 				),
 			);

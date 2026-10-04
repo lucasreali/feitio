@@ -7,9 +7,7 @@ import {
 	MembershipsRepository,
 } from "./memberships.repository.js";
 import { hashPassword, verifyPassword } from "./password.js";
-import { UsersRepository } from "./users.repository.js";
-
-type User = NonNullable<Awaited<ReturnType<UsersRepository["findById"]>>>;
+import { type User, UsersRepository } from "./users.repository.js";
 
 export interface Authenticated {
 	user: User;

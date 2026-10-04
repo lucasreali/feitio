@@ -5,12 +5,14 @@ import { users } from "../database/schemas/users.js";
 import type { Email } from "../domain/email.js";
 import type { UserId } from "../domain/ids.js";
 
+export type User = typeof users.$inferSelect;
+
 /** Reads admin panel users; a platform table, readable without a tenant. */
 @Injectable()
 export class UsersRepository {
 	constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-	async findByEmail(email: Email) {
+	async findByEmail(email: Email): Promise<User | null> {
 		const [user] = await this.db
 			.select()
 			.from(users)
@@ -19,7 +21,7 @@ export class UsersRepository {
 		return user ?? null;
 	}
 
-	async findById(id: UserId) {
+	async findById(id: UserId): Promise<User | null> {
 		const [user] = await this.db
 			.select()
 			.from(users)

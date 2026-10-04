@@ -11,7 +11,7 @@ describe("toStoreSettingsDto", () => {
 					primary: "#c2410c",
 					"primary-foreground": "#fff8f0",
 					"font-family": "Comic Sans",
-				} as StoreTheme,
+				} as unknown as StoreTheme,
 			}),
 		).toEqual({
 			displayName: "Aurora Ateliê",
