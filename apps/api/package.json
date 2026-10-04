@@ -48,6 +48,7 @@
 		"ioredis": "6.0.0",
 		"pg": "8.23.0",
 		"reflect-metadata": "0.2.2",
+		"resend": "6.30.0",
 		"rxjs": "7.8.2"
 	},
 	"devDependencies": {
