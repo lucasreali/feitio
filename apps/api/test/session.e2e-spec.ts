@@ -220,6 +220,24 @@ describe("Sessions (e2e)", () => {
 		expect(await sessions.destroyAllForUser(owner.userId)).toBe(0);
 	});
 
+	it("ends nothing and clears the cookie when there is no session", async () => {
+		const end = (cookies: Record<string, string>) =>
+			app.inject({ method: "POST", url: "/test-session/end", cookies });
+		const forged = app
+			.getHttpAdapter()
+			.getInstance()
+			.signCookie(crypto.randomUUID());
+
+		for (const cookies of [{}, { [config.cookieName]: forged }]) {
+			const response = await end(cookies);
+			expect(response.statusCode).toBe(201);
+			expect(
+				response.cookies.find((c) => c.name === config.cookieName)
+					?.value,
+			).toBe("");
+		}
+	});
+
 	it("rejects a tampered cookie", async () => {
 		const { cookie } = await start();
 		const [token, signature] = cookie.value.split(".");
@@ -333,6 +351,31 @@ describe("Sessions (e2e)", () => {
 			const { cookie } = await start();
 			expect((await me(cookie.value)).statusCode).toBe(200);
 		});
+	});
+
+	it("scopes the cookie to the configured domain", async () => {
+		const moduleRef = await Test.createTestingModule({
+			imports: [TestSessionModule],
+		})
+			.overrideProvider(SESSION_CONFIG)
+			.useValue({ ...config, cookieDomain: ".feitio.test" })
+			.compile();
+		const scoped = moduleRef.createNestApplication<NestFastifyApplication>(
+			new FastifyAdapter(),
+		);
+		await configureApp(scoped);
+		await scoped.init();
+		const owner = newOwner();
+
+		const response = await scoped.inject({
+			method: "POST",
+			url: "/test-session/start",
+			payload: owner,
+		});
+		expect(
+			response.cookies.find((c) => c.name === config.cookieName)?.domain,
+		).toBe(".feitio.test");
+		await scoped.close();
 	});
 
 	it("refuses protected routes without a session, with a generic message", async () => {
