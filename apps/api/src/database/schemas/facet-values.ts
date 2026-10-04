@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	check,
 	foreignKey,
+	integer,
 	pgTable,
 	text,
 	timestamp,
@@ -27,6 +28,8 @@ export const facetValues = pgTable(
 			.references(() => tenants.id, { onDelete: "cascade" }),
 		facetId: uuid("facet_id").$type<FacetId>().notNull(),
 		name: text("name").notNull(),
+		/** Order within the facet. */
+		position: integer("position").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),

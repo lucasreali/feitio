@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	check,
 	foreignKey,
+	integer,
 	pgTable,
 	text,
 	timestamp,
@@ -31,6 +32,8 @@ export const productOptionGroups = pgTable(
 			.references(() => tenants.id, { onDelete: "cascade" }),
 		productId: uuid("product_id").$type<ProductId>().notNull(),
 		name: text("name").notNull(),
+		/** Order within the product. */
+		position: integer("position").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),

@@ -22,4 +22,15 @@ export const TenantContext = {
 	current(): CurrentTenant | undefined {
 		return storage.getStore();
 	},
+
+	/** The current tenant's id, for rows the API writes. Throws outside a tenant context. */
+	id(): TenantId {
+		const tenant = storage.getStore();
+		if (!tenant) {
+			throw new Error(
+				"No tenant context: call it from a @TenantScoped() or @PanelScoped() route.",
+			);
+		}
+		return tenant.id;
+	},
 };

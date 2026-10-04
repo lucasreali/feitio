@@ -35,4 +35,11 @@ describe("TenantContext", () => {
 			Promise.all([slow(tenantA, 10), slow(tenantB, 1)]),
 		).resolves.toEqual(["a", "b"]);
 	});
+
+	it("gives the current tenant's id, and throws outside a run", () => {
+		expect(TenantContext.run(tenantA, () => TenantContext.id())).toBe(
+			tenantA.id,
+		);
+		expect(() => TenantContext.id()).toThrow(/tenant context/);
+	});
 });

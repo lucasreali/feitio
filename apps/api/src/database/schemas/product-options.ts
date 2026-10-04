@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
 	check,
 	foreignKey,
+	integer,
 	pgTable,
 	text,
 	timestamp,
@@ -33,6 +34,8 @@ export const productOptions = pgTable(
 		productId: uuid("product_id").$type<ProductId>().notNull(),
 		groupId: uuid("group_id").$type<ProductOptionGroupId>().notNull(),
 		name: text("name").notNull(),
+		/** Order within the group. */
+		position: integer("position").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),

@@ -67,7 +67,7 @@ Equivale a Product, ProductVariant, ProductOption, Facet, Collection e Asset.
 - [ ] Grupos de opções e opções (por exemplo, Tamanho: P, M, G e Cor: Azul)
 - [ ] Variantes: SKU, preço, combinação de opções e imagem própria
 - [ ] Regra: todo produto tem ao menos uma variante, e o preço fica na variante
-- [ ] Atributos para filtro (facets), como marca, material e gênero
+- [x] Atributos para filtro (facets), como marca, material e gênero
 - [ ] Coleções: agrupamento manual e por regra (por atributo), com ordem e hierarquia
 - [ ] Rotas de loja: listar com paginação, filtrar por coleção e atributo, ordenar, buscar por slug
 - [ ] Rotas de painel: criar, editar, arquivar e reordenar

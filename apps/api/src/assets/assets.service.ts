@@ -20,12 +20,9 @@ export class AssetsService {
 
 	/** Stores an image whose type was checked from its bytes, and records it. */
 	async create(body: Uint8Array, contentType: string): Promise<AssetDto> {
-		const tenant = TenantContext.current();
-		if (!tenant) {
-			throw new Error("AssetsService needs a tenant context");
-		}
+		const tenantId = TenantContext.id();
 		const file = await this.storage.upload({
-			tenantId: tenant.id,
+			tenantId,
 			visibility: "public",
 			category: CATEGORY,
 			body,
@@ -35,7 +32,7 @@ export class AssetsService {
 			const [asset] = await this.tenantDb.run((tx) =>
 				tx
 					.insert(assets)
-					.values({ tenantId: tenant.id, key: file.key })
+					.values({ tenantId, key: file.key })
 					.returning({ id: assets.id }),
 			);
 			return { id: asset.id, url: this.storage.publicUrl(file.key) };

@@ -85,17 +85,17 @@ describe("Catalog schema (e2e)", () => {
 			);
 			const group = await one(
 				query,
-				"insert into product_option_groups (tenant_id, product_id, name) values ($1, $2, 'Size')",
+				"insert into product_option_groups (tenant_id, product_id, name, position) values ($1, $2, 'Size', 0)",
 				[t, product],
 			);
 			const option = await one(
 				query,
-				"insert into product_options (tenant_id, product_id, group_id, name) values ($1, $2, $3, 'M')",
+				"insert into product_options (tenant_id, product_id, group_id, name, position) values ($1, $2, $3, 'M', 0)",
 				[t, product, group],
 			);
 			const variant = await one(
 				query,
-				"insert into product_variants (tenant_id, product_id, sku, price) values ($1, $2, 'SHIRT-M', 1290)",
+				"insert into product_variants (tenant_id, product_id, sku, price, position) values ($1, $2, 'SHIRT-M', 1290, 0)",
 				[t, product],
 			);
 			await query(
@@ -109,7 +109,7 @@ describe("Catalog schema (e2e)", () => {
 			);
 			const facetValue = await one(
 				query,
-				"insert into facet_values (tenant_id, facet_id, name) values ($1, $2, 'Aurora')",
+				"insert into facet_values (tenant_id, facet_id, name, position) values ($1, $2, 'Aurora', 0)",
 				[t, facet],
 			);
 			await query(
@@ -212,7 +212,7 @@ describe("Catalog schema (e2e)", () => {
 		],
 		[
 			"a variant of another tenant's product",
-			"insert into product_variants (tenant_id, product_id, sku, price) values ($1, $2, 'X', 1)",
+			"insert into product_variants (tenant_id, product_id, sku, price, position) values ($1, $2, 'X', 1, 1)",
 			(_a: CatalogRows, b: CatalogRows) => [b.product],
 		],
 		[
@@ -243,7 +243,7 @@ describe("Catalog schema (e2e)", () => {
 				);
 				const variant = await one(
 					query,
-					"insert into product_variants (tenant_id, product_id, sku, price) values ($1, $2, 'CAP', 500)",
+					"insert into product_variants (tenant_id, product_id, sku, price, position) values ($1, $2, 'CAP', 500, 0)",
 					[tenantA.id, other],
 				);
 				await query(

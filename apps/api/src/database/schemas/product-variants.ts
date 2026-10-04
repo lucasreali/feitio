@@ -43,6 +43,8 @@ export const productVariants = pgTable(
 		/** In cents. */
 		price: integer("price").notNull().$type<Money>(),
 		assetId: uuid("asset_id").$type<AssetId>(),
+		/** Order within the product. */
+		position: integer("position").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),
