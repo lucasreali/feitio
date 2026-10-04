@@ -11,11 +11,16 @@ const scryptAsync = promisify(scrypt) as (
 	options: { N: number; r: number; p: number; maxmem: number },
 ) => Promise<Buffer>;
 
-/** scrypt cost (OWASP's minimum is N=2^17 with r=8, p=1). */
-const COST = { N: 2 ** 17, r: 8, p: 1 };
+/**
+ * scrypt cost: OWASP's N=2^14, r=8, p=5, as strong as its N=2^17, p=1 but
+ * with 16 MiB per hash instead of 128 MiB, so parallel sign-ins cannot
+ * exhaust memory. Node runs the p lanes one after another.
+ */
+const COST = { N: 2 ** 14, r: 8, p: 5 };
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
-// scrypt needs 128 * N * r bytes; Node's default cap (32 MB) is below that.
+// scrypt needs 128 * N * r bytes. Sized from the stored parameters, so hashes
+// made with a higher cost than Node's default cap (32 MB) still verify.
 const maxmem = (N: number, r: number) => 256 * N * r;
 
 /**

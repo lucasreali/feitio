@@ -18,6 +18,10 @@ describe("password hashing", () => {
 		expect(first).toMatch(/^scrypt\$/);
 	});
 
+	it("uses OWASP's low-memory scrypt cost (16 MiB per hash), so parallel sign-ins cannot exhaust memory", async () => {
+		expect(await hashPassword("x")).toMatch(/^scrypt\$16384\$8\$5\$/);
+	});
+
 	it.each(["", "plain", "scrypt$1$2$3$x$y", "bcrypt$a$b$c$d$e"])(
 		"refuses a malformed stored hash %j",
 		async (stored) => {
