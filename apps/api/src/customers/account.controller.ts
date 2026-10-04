@@ -66,15 +66,36 @@ export class AccountController {
 		private readonly attempts: LoginAttempts,
 	) {}
 
-	/** Creates an account in the store and signs the buyer in. */
+	/**
+	 * Creates an account in the store and signs the buyer in. Each address
+	 * registers up to 30 accounts per store in 15 minutes (429 with
+	 * Retry-After): every registration hashes a password.
+	 */
 	@Post("register")
 	@TenantScoped()
 	@ApiBadRequestResponse({ description: "Invalid account." })
 	@ApiConflictResponse({
 		description: "The store already has a customer with this e-mail.",
 	})
-	async register(@Body() body: RegisterDto): Promise<SignedInDto> {
-		const { id, token } = await this.auth.register(parseRegistration(body));
+	@ApiTooManyRequestsResponse({
+		description: "Too many registrations; see the Retry-After header.",
+	})
+	async register(
+		@Body() body: RegisterDto,
+		@Req() request: FastifyRequest,
+		@Res({ passthrough: true }) reply: FastifyReply,
+	): Promise<SignedInDto> {
+		const registration = parseRegistration(body);
+		// Successes are not taken back: what this limits is the hashing.
+		await this.limit(
+			reply,
+			this.attempts.attempt(
+				registration.email,
+				request.ip,
+				`store-register:${TenantContext.id()}`,
+			),
+		);
+		const { id, token } = await this.auth.register(registration);
 		return { token, customer: await this.account(id) };
 	}
 
@@ -101,18 +122,10 @@ export class AccountController {
 			throw new BadRequestException("email and password are required");
 		}
 		const scope = `store:${TenantContext.id()}`;
-		const retryAfter = await this.attempts.attempt(
-			email,
-			request.ip,
-			scope,
+		await this.limit(
+			reply,
+			this.attempts.attempt(email, request.ip, scope),
 		);
-		if (retryAfter > 0) {
-			reply.header("retry-after", String(retryAfter));
-			throw new HttpException(
-				"Too many sign-in attempts",
-				HttpStatus.TOO_MANY_REQUESTS,
-			);
-		}
 		const id = await this.auth.authenticate(email, password);
 		if (!id) {
 			throw new UnauthorizedException();
@@ -158,17 +171,30 @@ export class AccountController {
 		return this.account(session.customerId);
 	}
 
-	/** Replaces the password and ends every session; use the new token. */
+	/**
+	 * Replaces the password and ends every session; use the new token. Wrong
+	 * current passwords are limited like sign-ins (429 with Retry-After).
+	 */
 	@Post("password")
 	@HttpCode(200)
 	@CustomerScoped()
 	@ApiBadRequestResponse({ description: "Invalid new password." })
 	@ApiForbiddenResponse({ description: "Wrong current password." })
+	@ApiTooManyRequestsResponse({
+		description: "Too many wrong passwords; see the Retry-After header.",
+	})
 	async changePassword(
 		@CurrentCustomer() session: CurrentCustomerSession,
 		@Body() body: ChangePasswordDto,
+		@Req() request: FastifyRequest,
+		@Res({ passthrough: true }) reply: FastifyReply,
 	): Promise<TokenDto> {
 		const { currentPassword, newPassword } = parsePasswordChange(body);
+		const scope = `store-password:${TenantContext.id()}`;
+		await this.limit(
+			reply,
+			this.attempts.attempt(session.customerId, request.ip, scope),
+		);
 		const token = await this.auth.changePassword(
 			session.customerId,
 			currentPassword,
@@ -177,6 +203,7 @@ export class AccountController {
 		if (!token) {
 			throw new ForbiddenException("Wrong password");
 		}
+		await this.attempts.succeeded(session.customerId, request.ip, scope);
 		return { token };
 	}
 
@@ -235,6 +262,21 @@ export class AccountController {
 			throw new NotFoundException();
 		}
 		return this.account(session.customerId);
+	}
+
+	/** 429 with Retry-After when a counted attempt is over its limit. */
+	private async limit(
+		reply: FastifyReply,
+		attempt: Promise<number>,
+	): Promise<void> {
+		const retryAfter = await attempt;
+		if (retryAfter > 0) {
+			reply.header("retry-after", String(retryAfter));
+			throw new HttpException(
+				"Too many attempts",
+				HttpStatus.TOO_MANY_REQUESTS,
+			);
+		}
 	}
 
 	/** The buyer as the store sees them; 401 if they are gone. */

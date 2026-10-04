@@ -150,6 +150,25 @@ describe("Store account routes (e2e)", () => {
 			await register({ email: customer.email, tenant: otherStore });
 		});
 
+		it("refuses more than 30 registrations from one address in 15 minutes", async () => {
+			const crowded = await fixtures.tenant();
+			for (let index = 0; index < 30; index++) {
+				await register({ tenant: crowded });
+			}
+
+			const response = await call("POST", "/store/account/register", {
+				payload: {
+					email: `${crypto.randomUUID()}@example.com`,
+					password: "correct horse",
+					name: "Ana",
+				},
+				tenant: crowded,
+			});
+			expect(response.statusCode).toBe(429);
+			expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
+			await register();
+		}, 30_000);
+
 		it("answers 400 to a short password", async () => {
 			const response = await call("POST", "/store/account/register", {
 				payload: {
@@ -324,6 +343,22 @@ describe("Store account routes (e2e)", () => {
 			expect(
 				(await login(customer.email, "new password")).statusCode,
 			).toBe(200);
+		});
+
+		it("refuses password changes after 5 wrong current passwords", async () => {
+			const { token, password } = await register();
+			const change = (currentPassword: string) =>
+				call("POST", "/store/account/password", {
+					token,
+					payload: { currentPassword, newPassword: "new password" },
+				});
+			for (let attempt = 0; attempt < 5; attempt++) {
+				expect((await change("wrong password")).statusCode).toBe(403);
+			}
+
+			const response = await change(password);
+			expect(response.statusCode).toBe(429);
+			expect(Number(response.headers["retry-after"])).toBeGreaterThan(0);
 		});
 	});
 
