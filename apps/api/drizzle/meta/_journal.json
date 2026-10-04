@@ -64,6 +64,20 @@
       "when": 1791136584684,
       "tag": "0008_users_access",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791136646269,
+      "tag": "0009_create_memberships",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791136646858,
+      "tag": "0010_memberships_access",
+      "breakpoints": true
     }
   ]
 }

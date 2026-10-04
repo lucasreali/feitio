@@ -1,4 +1,4 @@
-import { TenantId, UserId } from "./ids.js";
+import { MembershipId, TenantId, UserId } from "./ids.js";
 
 import { uuidv7 } from "./uuid-v7.js";
 
@@ -8,6 +8,7 @@ const uuidV4 = "0b9f4a3e-5c1d-4e8a-9f2b-7d6c5e4a3b21";
 describe.each([
 	["TenantId", TenantId],
 	["UserId", UserId],
+	["MembershipId", MembershipId],
 ])("%s", (name, Id) => {
 	it("accepts a UUID v7 and keeps it as the same string", () => {
 		expect(Id.parse(uuid)).toBe(uuid);
@@ -26,6 +27,7 @@ describe.each([
 it.each([
 	["TenantId", TenantId],
 	["UserId", UserId],
+	["MembershipId", MembershipId],
 ])("%s.generate creates a valid UUID v7 id", (_name, Id) => {
 	const id = Id.generate();
 	expect(Id.parse(id)).toBe(id);

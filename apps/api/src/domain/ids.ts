@@ -21,3 +21,7 @@ export const TenantId = entityId("TenantId");
 /** Id of a user of the admin panel. */
 export type UserId = Brand<string, "UserId">;
 export const UserId = entityId("UserId");
+
+/** Id of a membership: a user's access to a tenant, with a role. */
+export type MembershipId = Brand<string, "MembershipId">;
+export const MembershipId = entityId("MembershipId");

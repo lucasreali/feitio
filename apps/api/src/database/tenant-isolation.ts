@@ -10,6 +10,12 @@ import { appRole } from "./roles.js";
 export const currentTenantId = sql`nullif(current_setting('app.tenant_id', true), '')::uuid`;
 
 /**
+ * User of the current transaction, set with `set_config('app.user_id', ...,
+ * true)` to read a user's own rows before a tenant is chosen (sign-in).
+ */
+export const currentUserId = sql`nullif(current_setting('app.user_id', true), '')::uuid`;
+
+/**
  * The RLS policy every business table needs (its `tenant_id` column must
  * reference tenants): the application role reads and writes only the current
  * tenant's rows, and outside a tenant transaction no row matches.
