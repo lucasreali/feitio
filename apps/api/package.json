@@ -21,7 +21,9 @@
 		"services:up": "docker compose up -d --wait",
 		"services:down": "docker compose down",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate"
+		"db:migrate": "drizzle-kit migrate",
+		"db:roles": "node scripts/db-roles.ts",
+		"db:seed": "node scripts/db-seed.ts"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "3.1141.0",

@@ -8,6 +8,34 @@
       "when": 1791066165146,
       "tag": "0000_create_tenants",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791115349266,
+      "tag": "0001_tenants_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791115362343,
+      "tag": "0002_app_role_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791115407074,
+      "tag": "0003_create_store_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791115416311,
+      "tag": "0004_store_settings_access",
+      "breakpoints": true
     }
   ]
 }

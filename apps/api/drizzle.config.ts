@@ -5,10 +5,11 @@ if (existsSync(".env")) {
 	process.loadEnvFile();
 }
 
-const url = process.env.DATABASE_URL;
+// Migrations run as the owner of the tables, never as the application user.
+const url = process.env.MIGRATION_DATABASE_URL;
 if (!url) {
 	throw new Error(
-		"DATABASE_URL is not set. Copy apps/api/.env.example to apps/api/.env or set it in the environment.",
+		"MIGRATION_DATABASE_URL is not set. Copy apps/api/.env.example to apps/api/.env or set it in the environment.",
 	);
 }
 

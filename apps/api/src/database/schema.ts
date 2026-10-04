@@ -1,4 +1,5 @@
+import { storeSettings } from "./schemas/store-settings.js";
 import { tenants } from "./schemas/tenants.js";
 
 /** Every table of the system, passed to the Drizzle client. One file per table in `schemas/`. */
-export const schemas = { tenants };
+export const schemas = { tenants, storeSettings };
