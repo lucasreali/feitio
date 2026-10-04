@@ -16,8 +16,3 @@ export class CreateFacetDto {
 	/** Names of the first values, unique in the facet. */
 	values?: string[];
 }
-
-export class NameDto {
-	/** 1 to 80 characters. */
-	name: string;
-}

@@ -17,8 +17,9 @@ import {
 } from "@nestjs/swagger";
 import { PanelScoped } from "../auth/panel-scoped.decorator.js";
 import { FacetId, FacetValueId } from "../domain/ids.js";
+import { NameDto } from "../http/name.dto.js";
 import { nameBody, pathId } from "../http/request-body.js";
-import { CreateFacetDto, FacetDto, NameDto } from "./facet.dto.js";
+import { CreateFacetDto, FacetDto } from "./facet.dto.js";
 import { FACET_NAME_MAX, parseNewFacet } from "./facet-input.js";
 import { FacetsRepository } from "./facets.repository.js";
 

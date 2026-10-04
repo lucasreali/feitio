@@ -57,6 +57,15 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - `upload` accepts only the types in `src/storage/file-types.ts` and derives the extension from the type. Never allow HTML or SVG. Never serve the buckets from a subdomain of a Feitio domain.
 - Catalog images are assets (`src/assets/`, table `assets`, panel routes `POST /admin/assets` and `DELETE /admin/assets/:id`). The type comes from the file's first bytes (`detectImageType`), never from the type the client declares; anything else is 415. An asset row keeps only the key: assets are always public. Removal deletes the row and then the file in the same transaction, so a file that cannot be removed keeps its row.
 
+## Catalog
+
+- Products (`src/products/`): new products are drafts with a first variant; only `active` ones reach the stores, and `archived` replaces deletion. The slug is unique per store; left out, it comes from the name (`slugify`) with `-2`, `-3`... when taken. `description` is plain text.
+- Every product has at least one variant (a deferred trigger refuses to commit one without; the API answers 409 before that), and the price (`Money`, integer cents) lives on the variant. A variant's options never change after creation, since stock and orders will point at its id: one option per group of its product, enforced by the composite keys of `product_variant_options`, and no two variants with the same options. A new option group gives its first option to every existing variant; a group can only be removed while all variants share one of its options.
+- Writes to a product's structure lock the product row first (`lockProduct`), so checks such as "not the last variant" hold under concurrent requests.
+- Order that people see (images, option groups, options, variants, facet values, collections) is a `position` column, never the id: UUID v7 ids made in the same millisecond have no order among themselves.
+- Facets (`src/facets/`) are store-wide attributes with values, attached to products. A facet value a rule collection uses cannot be removed (409), nor can an asset a product or variant uses.
+- Panel sub-resource routes (options, variants) answer with the whole `ProductDto`. Database constraint violations become HTTP errors through `translateConstraints` (`src/database/pg-error.ts`), keyed by constraint name or SQLSTATE.
+
 ## Valkey and sessions
 
 - Valkey is the in-memory store; there is no Redis. `ValkeyModule` provides the client (ioredis speaks the protocol); inject `Valkey` from `src/valkey/valkey.ts`. The server runs with `noeviction` (BullMQ needs it), so every cache key needs a TTL, and BullMQ queues must open their own connections with `maxRetriesPerRequest: null`.

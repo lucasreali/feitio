@@ -1,5 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
 import { eq } from "drizzle-orm";
+import {
+	FOREIGN_KEY_VIOLATION,
+	translateConstraints,
+} from "../database/pg-error.js";
 import { assets } from "../database/schemas/assets.js";
 import type { AssetId } from "../domain/ids.js";
 import { FileStorage } from "../storage/file-storage.js";
@@ -45,6 +49,15 @@ export class AssetsService {
 
 	/** Removes the asset and its file; false if the tenant has no such asset. */
 	remove(id: AssetId): Promise<boolean> {
+		return translateConstraints(() => this.removeUnused(id), {
+			[FOREIGN_KEY_VIOLATION]: () =>
+				new ConflictException(
+					"A product or variant uses this image; take it off first",
+				),
+		});
+	}
+
+	private removeUnused(id: AssetId): Promise<boolean> {
 		return this.tenantDb.run(async (tx) => {
 			const [asset] = await tx
 				.delete(assets)
