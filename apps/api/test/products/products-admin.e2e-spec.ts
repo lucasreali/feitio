@@ -133,6 +133,10 @@ describe("Product panel routes (e2e)", () => {
 					price: 4990,
 					image: null,
 					optionIds: [],
+					weight: null,
+					height: null,
+					width: null,
+					length: null,
 				},
 			]);
 			expect(
@@ -497,6 +501,37 @@ describe("Product panel routes (e2e)", () => {
 				(
 					await panel.patch(`/admin/variants/${variant.id}`, {
 						optionIds: [],
+					})
+				).statusCode,
+			).toBe(400);
+		});
+
+		it("sets and clears a variant's weight and dimensions for shipping", async () => {
+			const [variant] = (await create(panel)).variants;
+
+			const response = await panel.patch(
+				`/admin/variants/${variant.id}`,
+				{ weight: 350, height: 4, width: 30, length: 25 },
+			);
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json<Product>().variants[0]).toMatchObject({
+				weight: 350,
+				height: 4,
+				width: 30,
+				length: 25,
+			});
+			const cleared = await panel.patch(`/admin/variants/${variant.id}`, {
+				weight: null,
+			});
+			expect(cleared.json<Product>().variants[0]).toMatchObject({
+				weight: null,
+				height: 4,
+			});
+			expect(
+				(
+					await panel.patch(`/admin/variants/${variant.id}`, {
+						weight: 0,
 					})
 				).statusCode,
 			).toBe(400);

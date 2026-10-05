@@ -22,6 +22,7 @@ import { productOptions } from "./schemas/product-options.js";
 import { productVariantOptions } from "./schemas/product-variant-options.js";
 import { productVariants } from "./schemas/product-variants.js";
 import { products } from "./schemas/products.js";
+import { shippingMethods } from "./schemas/shipping-methods.js";
 import { stockLevels } from "./schemas/stock-levels.js";
 import { stockLocations } from "./schemas/stock-locations.js";
 import { stockMovements } from "./schemas/stock-movements.js";
@@ -61,4 +62,5 @@ export const schemas = {
 	orders,
 	orderLines,
 	orderEvents,
+	shippingMethods,
 };

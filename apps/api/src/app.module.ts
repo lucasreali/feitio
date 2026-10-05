@@ -8,6 +8,7 @@ import { HealthModule } from "./health/health.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
 import { ProductsModule } from "./products/products.module.js";
 import { SessionModule } from "./session/session.module.js";
+import { ShippingModule } from "./shipping/shipping.module.js";
 import { StockModule } from "./stock/stock.module.js";
 import { StorageModule } from "./storage/storage.module.js";
 import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
@@ -23,6 +24,7 @@ import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
 		OrdersModule,
 		ProductsModule,
 		SessionModule,
+		ShippingModule,
 		StockModule,
 		StorageModule,
 		StoreSettingsModule,

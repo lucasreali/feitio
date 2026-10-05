@@ -31,6 +31,15 @@ export class OrderAddressDto {
 	state: string;
 }
 
+/** The shipping the buyer chose; its price is the order's `shipping`. */
+export class OrderShippingMethodDto {
+	id: string;
+	/** The method's name when it was chosen. */
+	name: string;
+	/** Business days to deliver, as quoted; null when the method does not say. */
+	deliveryDays: number | null;
+}
+
 export class CartCustomerDto {
 	email: string;
 }
@@ -52,9 +61,22 @@ export class CartDto {
 	lines: OrderLineDto[];
 	subtotal: number;
 	discount: number;
+	/** The chosen method's price; 0 before choosing. */
 	shipping: number;
 	/** subtotal − discount + shipping. */
 	total: number;
+	/**
+	 * Chosen from GET /store/cart/shipping-options. Changing the lines or the
+	 * CEP clears it, and the buyer chooses again.
+	 */
+	shippingMethod: OrderShippingMethodDto | null;
+	/** The carrier's tracking code, once the store ships the order. */
+	trackingCode: string | null;
+}
+
+export class SetShippingMethodDto {
+	/** The id of an option from GET /store/cart/shipping-options. */
+	methodId: string;
 }
 
 export class NewCartDto {
@@ -149,10 +171,22 @@ export class OrderDto {
 	discount: number;
 	shipping: number;
 	total: number;
+	shippingMethod: OrderShippingMethodDto | null;
+	trackingCode: string | null;
+	/** Where to print the shipping label. */
+	labelUrl: string | null;
 	/** When the buyer first placed it. */
 	placedAt: Date | null;
 	createdAt: Date;
 	updatedAt: Date;
+}
+
+/** Send both; null clears one. */
+export class OrderShipmentDto {
+	/** Up to 60 characters. */
+	trackingCode: string | null;
+	/** An https:// address. */
+	labelUrl: string | null;
 }
 
 export class OrderTransitionDto {
@@ -205,6 +239,9 @@ export class CustomerOrderDto {
 	discount: number;
 	shipping: number;
 	total: number;
+	trackingCode: string | null;
+	/** Where the store printed the shipping label, with the address. */
+	labelUrl: string | null;
 	placedAt: Date | null;
 	createdAt: Date;
 }

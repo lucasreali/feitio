@@ -178,12 +178,30 @@ describe("parseVariantChanges", () => {
 		});
 	});
 
-	it.each([{}, { optionIds: [] }, { sku: null }, { price: null }])(
-		"refuses %j",
-		(body) => {
-			expect(() => parseVariantChanges(body)).toThrow(
-				BadRequestException,
-			);
-		},
-	);
+	it("reads the weight in grams and the dimensions in centimeters; null clears them", () => {
+		expect(
+			parseVariantChanges({
+				weight: 350,
+				height: 4,
+				width: 30,
+				length: null,
+			}),
+		).toEqual({ weight: 350, height: 4, width: 30, length: null });
+	});
+
+	it.each([
+		{},
+		{ optionIds: [] },
+		{ sku: null },
+		{ price: null },
+		{ weight: 0 },
+		{ weight: 1.5 },
+		{ weight: "350" },
+		{ weight: 1_000_001 },
+		{ height: -1 },
+		{ width: 1001 },
+		{ length: 0 },
+	])("refuses %j", (body) => {
+		expect(() => parseVariantChanges(body)).toThrow(BadRequestException);
+	});
 });

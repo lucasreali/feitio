@@ -28,6 +28,17 @@ const NAME_MAX = 200;
 export const OPTION_NAME_MAX = 80;
 /** The price column is a 32-bit integer of cents. */
 const PRICE_MAX = 2 ** 31 - 1;
+/** Heaviest variant, in grams (a ton). */
+const WEIGHT_MAX = 1_000_000;
+/** Largest side of a variant's package, in centimeters. */
+const DIMENSION_MAX = 1000;
+/** What shipping needs of a variant: its weight and its package's sides. */
+const SIZE_FIELDS = {
+	weight: WEIGHT_MAX,
+	height: DIMENSION_MAX,
+	width: DIMENSION_MAX,
+	length: DIMENSION_MAX,
+} as const;
 
 export interface NewProduct {
 	name: string;
@@ -70,6 +81,12 @@ export interface VariantChanges {
 	price?: Money;
 	/** null removes the image. */
 	imageId?: AssetId | null;
+	/** In grams; null clears it. */
+	weight?: number | null;
+	/** Sides of the package, in centimeters; null clears them. */
+	height?: number | null;
+	width?: number | null;
+	length?: number | null;
 }
 
 const sku = (value: unknown) =>
@@ -211,7 +228,12 @@ export function parseNewVariant(body: unknown): NewVariant {
  * variant's combination never changes, since stock and orders point at it.
  */
 export function parseVariantChanges(body: unknown): VariantChanges {
-	const fields = objectBody(body, ["sku", "price", "imageId"]);
+	const fields = objectBody(body, [
+		"sku",
+		"price",
+		"imageId",
+		...Object.keys(SIZE_FIELDS),
+	]);
 	const changes: VariantChanges = {};
 	if ("sku" in fields) {
 		changes.sku = sku(fields.sku);
@@ -221,6 +243,20 @@ export function parseVariantChanges(body: unknown): VariantChanges {
 	}
 	if ("imageId" in fields) {
 		changes.imageId = imageId(fields.imageId);
+	}
+	for (const [field, max] of Object.entries(SIZE_FIELDS)) {
+		if (field in fields) {
+			const value = fields[field];
+			changes[field as keyof typeof SIZE_FIELDS] =
+				value === null ||
+				(Number.isInteger(value) &&
+					(value as number) >= 1 &&
+					(value as number) <= max)
+					? (value as number | null)
+					: invalid(
+							`${field} must be null or a whole number from 1 to ${max}`,
+						);
+		}
 	}
 	return changes;
 }

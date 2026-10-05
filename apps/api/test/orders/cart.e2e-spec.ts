@@ -91,6 +91,8 @@ describe("Store cart routes (e2e)", { timeout: 30_000 }, () => {
 				discount: 0,
 				shipping: 0,
 				total: 0,
+				shippingMethod: null,
+				trackingCode: null,
 			});
 			expect(
 				(await cart("GET", "/store/cart", { token })).json(),

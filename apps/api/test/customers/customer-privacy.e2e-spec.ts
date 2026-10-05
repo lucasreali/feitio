@@ -103,6 +103,13 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 		if (!place) {
 			return { token, id: undefined };
 		}
+		const [option] = (
+			await cart("GET", "/store/cart/shipping-options", { token })
+		).json<{ id: string }[]>();
+		await cart("PUT", "/store/cart/shipping-method", {
+			token,
+			payload: { methodId: option.id },
+		});
 		const { number } = (
 			await cart("POST", "/store/cart/place", { token })
 		).json<{ number: number }>();
@@ -117,6 +124,7 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 		fixtures = await Fixtures.open();
 		store = await fixtures.tenant();
 		otherStore = await fixtures.tenant();
+		await fixtures.shippingMethod(store);
 		[owner, staff, otherOwner] = await Promise.all([
 			fixtures.user(),
 			fixtures.user(),
@@ -206,7 +214,10 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 							unitPrice: 1500,
 						}),
 					],
-					total: 3000,
+					shipping: 1500,
+					total: 4500,
+					trackingCode: null,
+					labelUrl: null,
 				}),
 			]);
 		});
@@ -244,13 +255,19 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 			expect(again.statusCode).toBe(201);
 		});
 
-		it("detaches the customer's past orders, clearing their addresses, and removes their carts", async () => {
+		it("detaches the customer's past orders, clearing their addresses and labels, and removes their carts", async () => {
 			const { id, token } = await buyer();
 			const delivered = await orderOf(token);
 			for (const state of ["paid", "preparing", "shipped", "delivered"]) {
 				await panel.post(`/admin/orders/${delivered.id}/transitions`, {
 					state,
 				});
+				if (state === "preparing") {
+					await panel.put(`/admin/orders/${delivered.id}/shipment`, {
+						trackingCode: "AA123456789BR",
+						labelUrl: "https://labels.example.com/aa123.pdf",
+					});
+				}
 			}
 			const cancelled = await orderOf(token);
 			await panel.post(`/admin/orders/${cancelled.id}/transitions`, {
@@ -269,8 +286,10 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 					customer: null,
 					shippingAddress: null,
 					billingAddress: null,
+					trackingCode: null,
+					labelUrl: null,
 					lines: [{ quantity: 2 }],
-					total: 3000,
+					total: 4500,
 				});
 			}
 			expect(

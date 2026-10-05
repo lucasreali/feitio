@@ -11,15 +11,18 @@ import {
 	Patch,
 	Post,
 	Put,
+	Query,
 	Req,
 	UnauthorizedException,
 } from "@nestjs/common";
 import {
+	ApiBadGatewayResponse,
 	ApiBadRequestResponse,
 	ApiBearerAuth,
 	ApiConflictResponse,
 	ApiHeader,
 	ApiNotFoundResponse,
+	ApiQuery,
 	ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type { FastifyRequest } from "fastify";
@@ -27,8 +30,11 @@ import { readCustomerSession } from "../customers/customer.guard.js";
 import { parseGuest, parseOrderAddress } from "../customers/customer-input.js";
 import { CUSTOMER_SECURITY } from "../customers/customer-scoped.decorator.js";
 import { CustomerSessions } from "../customers/customer-sessions.js";
-import { OrderLineId } from "../domain/ids.js";
-import { pathId } from "../http/request-body.js";
+import { Cep } from "../domain/cep.js";
+import { OrderLineId, ShippingMethodId } from "../domain/ids.js";
+import { invalid, objectBody, pathId } from "../http/request-body.js";
+import { ShippingOptionDto } from "../shipping/shipping.dto.js";
+import { ShippingQuotes } from "../shipping/shipping-quotes.js";
 import { TenantScoped } from "../tenancy/tenant-scoped.decorator.js";
 import { CartRepository } from "./cart.repository.js";
 import { parseLineQuantity, parseNewLine } from "./cart-input.js";
@@ -40,6 +46,7 @@ import {
 	LineQuantityDto,
 	NewCartDto,
 	SetOrderAddressDto,
+	SetShippingMethodDto,
 } from "./order.dto.js";
 
 /** Marks a route of the cart behind the X-Cart-Token header. */
@@ -78,6 +85,7 @@ export class CartController {
 	constructor(
 		private readonly carts: CartRepository,
 		private readonly sessions: CustomerSessions,
+		private readonly quotes: ShippingQuotes,
 	) {}
 
 	/** Starts an empty cart; keep its token to change it and to follow the order. */
@@ -214,6 +222,71 @@ export class CartController {
 				parseOrderAddress(body),
 			),
 		);
+	}
+
+	/**
+	 * The store's shipping methods that can ship the cart, priced for it and
+	 * cheapest first. To `cep` when sent, as when the buyer types a CEP before
+	 * the address; otherwise to the shipping address. Without either, methods
+	 * that price by CEP are left out.
+	 */
+	@Get("shipping-options")
+	@CartScoped()
+	@ApiQuery({
+		name: "cep",
+		required: false,
+		description: "8 digits, with or without the hyphen.",
+	})
+	@ApiBadRequestResponse({ description: "Invalid CEP." })
+	@ApiConflictResponse({ description: "The order is no longer a cart." })
+	async shippingOptions(
+		@Headers("x-cart-token") token: string | undefined,
+		@Query() query: Record<string, unknown>,
+	): Promise<ShippingOptionDto[]> {
+		const hash = tokenHash(token);
+		const { cep } = query;
+		const destination =
+			cep === undefined
+				? undefined
+				: (typeof cep === "string" && Cep.tryParse(cep)) ||
+					invalid("cep must have 8 digits");
+		const parcel = await this.carts.parcel(hash, destination);
+		if (!parcel) {
+			throw new NotFoundException();
+		}
+		return this.quotes.options(parcel);
+	}
+
+	/**
+	 * Chooses how the order ships, priced into the cart's `shipping`. Quoted
+	 * to the shipping address; pickup at the store needs none.
+	 */
+	@Put("shipping-method")
+	@CartScoped()
+	@ApiBadRequestResponse({
+		description: "A method the store does not offer.",
+	})
+	@ApiConflictResponse({
+		description:
+			"The method cannot ship the cart (no address, or items without weight and dimensions for a carrier), the cart changed while quoting, or it is no longer a cart.",
+	})
+	@ApiBadGatewayResponse({ description: "The carrier did not answer." })
+	async setShippingMethod(
+		@Headers("x-cart-token") token: string | undefined,
+		@Body() body: SetShippingMethodDto,
+	): Promise<CartDto> {
+		const hash = tokenHash(token);
+		const { methodId } = objectBody(body, ["methodId"]);
+		const id =
+			(typeof methodId === "string" &&
+				ShippingMethodId.tryParse(methodId)) ||
+			invalid("methodId must be a shipping method id");
+		const parcel = await this.carts.parcel(hash);
+		if (!parcel) {
+			throw new NotFoundException();
+		}
+		const choice = await this.quotes.quote(id, parcel);
+		return found(await this.carts.setShipping(hash, parcel, choice));
 	}
 
 	@Patch("lines/:id")

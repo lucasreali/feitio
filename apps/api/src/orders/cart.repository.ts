@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, type SQL, sql } from "drizzle-orm";
 import type { Guest } from "../customers/customer-input.js";
 import { guestCustomer } from "../customers/customers.repository.js";
 import { customers } from "../database/schemas/customers.js";
@@ -7,7 +7,9 @@ import { orderLines } from "../database/schemas/order-lines.js";
 import { type OrderAddress, orders } from "../database/schemas/orders.js";
 import { productVariants } from "../database/schemas/product-variants.js";
 import { products } from "../database/schemas/products.js";
+import { shippingMethods } from "../database/schemas/shipping-methods.js";
 import { stockLevels } from "../database/schemas/stock-levels.js";
+import type { Cep } from "../domain/cep.js";
 import type {
 	CustomerId,
 	OrderId,
@@ -15,6 +17,8 @@ import type {
 	ProductVariantId,
 } from "../domain/ids.js";
 import { invalid } from "../http/request-body.js";
+import type { Parcel } from "../shipping/shipping-calculator.js";
+import type { ShippingChoice } from "../shipping/shipping-quotes.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
 	TenantDatabase,
@@ -23,7 +27,7 @@ import {
 import { MAX_QUANTITY } from "./cart-input.js";
 import { newCartToken } from "./cart-token.js";
 import type { CartDto } from "./order.dto.js";
-import { linesOf } from "./order-lines.js";
+import { linesOf, shippingMethodOf } from "./order-lines.js";
 import { transitionOrder } from "./order-transitions.js";
 
 /** Variants the store sells: of active products. */
@@ -44,10 +48,15 @@ async function lockOrder(tx: TenantTransaction, tokenHash: string) {
 			state: orders.state,
 			customerId: orders.customerId,
 			shippingAddress: orders.shippingAddress,
+			shippingKind: shippingMethods.kind,
 		})
 		.from(orders)
+		.leftJoin(
+			shippingMethods,
+			eq(shippingMethods.id, orders.shippingMethodId),
+		)
 		.where(eq(orders.tokenHash, tokenHash))
-		.for("update");
+		.for("update", { of: orders });
 	return order;
 }
 
@@ -127,6 +136,63 @@ async function reprice(tx: TenantTransaction, id: OrderId) {
 		.where(eq(orders.id, id));
 }
 
+/**
+ * Drops the shipping the buyer chose, whose price no longer fits the cart.
+ * Runs when the lines change, and when the CEP to ship to changes (`where`).
+ */
+async function clearShipping(tx: TenantTransaction, id: OrderId, where?: SQL) {
+	await tx
+		.update(orders)
+		.set({
+			shippingMethodId: null,
+			shippingMethodName: null,
+			shippingDeliveryDays: null,
+			shipping: sql`0`,
+			total: sql`${orders.subtotal} - ${orders.discount}`,
+		})
+		.where(and(eq(orders.id, id), where));
+}
+
+/**
+ * What the cart ships, to quote it: its lines with their variants' weight
+ * and dimensions, and the CEP (`cep`, or the shipping address's).
+ */
+async function parcelOf(
+	tx: TenantTransaction,
+	id: OrderId,
+	cep: Cep | undefined,
+): Promise<Parcel> {
+	const [order] = await tx
+		.select({
+			subtotal: orders.subtotal,
+			shippingAddress: orders.shippingAddress,
+		})
+		.from(orders)
+		.where(eq(orders.id, id));
+	const items = await tx
+		.select({
+			variantId: sql<ProductVariantId>`${productVariants.id}`,
+			quantity: orderLines.quantity,
+			unitPrice: orderLines.unitPrice,
+			weight: productVariants.weight,
+			height: productVariants.height,
+			width: productVariants.width,
+			length: productVariants.length,
+		})
+		.from(orderLines)
+		.innerJoin(
+			productVariants,
+			eq(productVariants.id, orderLines.variantId),
+		)
+		.where(eq(orderLines.orderId, id))
+		.orderBy(asc(orderLines.position));
+	return {
+		destination: cep ?? order.shippingAddress?.cep ?? null,
+		subtotal: order.subtotal,
+		items,
+	};
+}
+
 /** The order as the store shows it. */
 export async function cartView(
 	tx: TenantTransaction,
@@ -143,12 +209,14 @@ export async function cartView(
 			discount: orders.discount,
 			shipping: orders.shipping,
 			total: orders.total,
+			shippingMethod: shippingMethodOf,
+			trackingCode: orders.trackingCode,
 		})
 		.from(orders)
 		.leftJoin(customers, eq(customers.id, orders.customerId))
 		.where(eq(orders.id, id));
 	const lines = await linesOf(tx, id);
-	const { state, number, email, shippingAddress, billingAddress, ...totals } =
+	const { state, number, email, shippingAddress, billingAddress, ...rest } =
 		order;
 	return {
 		state,
@@ -158,7 +226,7 @@ export async function cartView(
 		shippingAddress,
 		billingAddress,
 		lines,
-		...totals,
+		...rest,
 	};
 }
 
@@ -247,14 +315,16 @@ export class CartRepository {
 					set: { quantity: total },
 				});
 			await reprice(tx, id);
+			await clearShipping(tx, id);
 			return cartView(tx, id);
 		});
 	}
 
 	/**
 	 * Places the order: brings it up to date with the catalog, then awaits
-	 * payment with its stock reserved. 409 for a cart without lines, buyer or
-	 * shipping address, or without the stock.
+	 * payment with its stock reserved. 409 for a cart without lines, buyer,
+	 * shipping method or shipping address (unless picked up at the store),
+	 * or without the stock.
 	 */
 	place(tokenHash: string): Promise<CartDto | undefined> {
 		return this.tenantDb.run(async (tx) => {
@@ -272,7 +342,10 @@ export class CartRepository {
 				const missing = [
 					!line && "lines",
 					!order.customerId && "a customer",
-					!order.shippingAddress && "a shipping address",
+					!order.shippingKind && "a shipping method",
+					!order.shippingAddress &&
+						order.shippingKind !== "pickup" &&
+						"a shipping address",
 				].filter(Boolean);
 				if (missing.length > 0) {
 					throw new ConflictException(
@@ -326,6 +399,13 @@ export class CartRepository {
 		address: OrderAddress,
 	): Promise<CartDto | undefined> {
 		return this.changeCart(tokenHash, async (tx, id) => {
+			if (kind === "shipping") {
+				await clearShipping(
+					tx,
+					id,
+					sql`${orders.shippingAddress}->>'cep' is distinct from ${address.cep}`,
+				);
+			}
 			await tx
 				.update(orders)
 				.set(
@@ -333,6 +413,54 @@ export class CartRepository {
 						? { shippingAddress: address }
 						: { billingAddress: address },
 				)
+				.where(eq(orders.id, id));
+		});
+	}
+
+	/**
+	 * What the cart ships, to quote it, to `cep` or else to its shipping
+	 * address. 409 when the order is no longer a cart.
+	 */
+	parcel(tokenHash: string, cep?: Cep): Promise<Parcel | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const [order] = await tx
+				.select({ id: orders.id, state: orders.state })
+				.from(orders)
+				.where(eq(orders.tokenHash, tokenHash));
+			if (order && order.state !== "cart") {
+				throw new ConflictException(
+					"The order has been placed; only a cart can change",
+				);
+			}
+			return order && parcelOf(tx, order.id, cep);
+		});
+	}
+
+	/**
+	 * Keeps the shipping the buyer chose, quoted for `parcel`. 409 when the
+	 * cart changed since the quote: the buyer quotes again.
+	 */
+	setShipping(
+		tokenHash: string,
+		parcel: Parcel,
+		choice: ShippingChoice,
+	): Promise<CartDto | undefined> {
+		return this.changeCart(tokenHash, async (tx, id) => {
+			const current = await parcelOf(tx, id, undefined);
+			if (JSON.stringify(current) !== JSON.stringify(parcel)) {
+				throw new ConflictException(
+					"The cart changed while quoting; quote again",
+				);
+			}
+			await tx
+				.update(orders)
+				.set({
+					shippingMethodId: choice.methodId,
+					shippingMethodName: choice.name,
+					shippingDeliveryDays: choice.deliveryDays,
+					shipping: choice.price,
+					total: sql`${orders.subtotal} - ${orders.discount} + ${choice.price}`,
+				})
 				.where(eq(orders.id, id));
 		});
 	}
@@ -402,6 +530,7 @@ export class CartRepository {
 			}
 			await change(tx, line);
 			await reprice(tx, id);
+			await clearShipping(tx, id);
 			return cartView(tx, id);
 		});
 	}

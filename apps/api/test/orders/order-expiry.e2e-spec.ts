@@ -79,6 +79,7 @@ describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 		app = await startApp();
 		fixtures = await Fixtures.open();
 		store = await fixtures.tenant();
+		await fixtures.shippingMethod(store);
 		owner = await fixtures.user();
 		await fixtures.member(store, owner, "owner");
 		panel = panelClient(app, await signIn(app, owner));

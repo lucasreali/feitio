@@ -13,13 +13,20 @@ import {
 	uuid,
 } from "drizzle-orm/pg-core";
 import type { Cep } from "../../domain/cep.js";
-import type { CustomerId, OrderId, TenantId } from "../../domain/ids.js";
+import type { HttpsUrl } from "../../domain/https-url.js";
+import type {
+	CustomerId,
+	OrderId,
+	ShippingMethodId,
+	TenantId,
+} from "../../domain/ids.js";
 import type { Money } from "../../domain/money.js";
 import type { Phone } from "../../domain/phone.js";
 import type { BrazilianState } from "../../domain/state.js";
 import { ORDER_STATES } from "../../orders/order-state.js";
 import { tenantIsolation } from "../tenant-isolation.js";
 import { customers } from "./customers.js";
+import { shippingMethods } from "./shipping-methods.js";
 import { tenants } from "./tenants.js";
 
 export const orderState = pgEnum("order_state", ORDER_STATES);
@@ -67,6 +74,19 @@ export const orders = pgTable(
 		discount: integer("discount").notNull().default(0).$type<Money>(),
 		shipping: integer("shipping").notNull().default(0).$type<Money>(),
 		total: integer("total").notNull().default(0).$type<Money>(),
+		/**
+		 * The shipping the buyer chose, priced into `shipping`. Changing the
+		 * lines or the CEP clears it, so the price always fits the cart.
+		 */
+		shippingMethodId: uuid("shipping_method_id").$type<ShippingMethodId>(),
+		/** Copy of the method's name, as the buyer chose it. */
+		shippingMethodName: text("shipping_method_name"),
+		/** Business days to deliver, as quoted; null when the method does not say. */
+		shippingDeliveryDays: integer("shipping_delivery_days"),
+		/** The carrier's tracking code, set by the staff when shipping. */
+		trackingCode: text("tracking_code"),
+		/** Where the staff prints the shipping label. */
+		labelUrl: text("label_url").$type<HttpsUrl>(),
 		/** When the order was first placed. */
 		placedAt: timestamp("placed_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true })
@@ -91,6 +111,11 @@ export const orders = pgTable(
 			columns: [table.tenantId, table.customerId],
 			foreignColumns: [customers.tenantId, customers.id],
 		}).onDelete("set null"),
+		foreignKey({
+			name: "orders_shipping_method_fk",
+			columns: [table.tenantId, table.shippingMethodId],
+			foreignColumns: [shippingMethods.tenantId, shippingMethods.id],
+		}),
 		index("orders_customer_idx").on(table.customerId),
 		index("orders_state_updated_idx").on(
 			table.tenantId,
@@ -98,6 +123,14 @@ export const orders = pgTable(
 			table.updatedAt,
 		),
 		check("orders_number_positive", sql`${table.number} > 0`),
+		check(
+			"orders_shipping_delivery_days_positive",
+			sql`${table.shippingDeliveryDays} > 0`,
+		),
+		check(
+			"orders_shipping_method_named",
+			sql`(${table.shippingMethodId} is null) = (${table.shippingMethodName} is null)`,
+		),
 		check(
 			"orders_amounts_not_negative",
 			sql`${table.subtotal} >= 0 and ${table.discount} >= 0 and ${table.shipping} >= 0 and ${table.total} >= 0`,

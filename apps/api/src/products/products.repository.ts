@@ -218,6 +218,10 @@ export class ProductsRepository {
 							price: productVariants.price,
 							assetId: assets.id,
 							key: assets.key,
+							weight: productVariants.weight,
+							height: productVariants.height,
+							width: productVariants.width,
+							length: productVariants.length,
 						})
 						.from(productVariants)
 						.leftJoin(
@@ -286,6 +290,10 @@ export class ProductsRepository {
 								groupOrder.indexOf(b.groupId),
 						)
 						.map((option) => option.optionId),
+					weight: variant.weight,
+					height: variant.height,
+					width: variant.width,
+					length: variant.length,
 				})),
 				facetValues: values,
 			};

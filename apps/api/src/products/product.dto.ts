@@ -26,6 +26,12 @@ export class ProductVariantDto {
 	image: ProductImageDto | null;
 	/** One option of each option group, in the groups' order. */
 	optionIds: string[];
+	/** In grams; null when not set. Carriers need it to quote shipping. */
+	weight: number | null;
+	/** Sides of the package, in centimeters; null when not set. */
+	height: number | null;
+	width: number | null;
+	length: number | null;
 }
 
 export class ProductFacetValueDto {
@@ -142,4 +148,10 @@ export class UpdateVariantDto {
 	price?: number;
 	/** null removes the image. */
 	imageId?: string | null;
+	/** In grams, 1 to 1,000,000; null clears it. */
+	weight?: number | null;
+	/** Sides of the package in centimeters, 1 to 1000 each; null clears them. */
+	height?: number | null;
+	width?: number | null;
+	length?: number | null;
 }

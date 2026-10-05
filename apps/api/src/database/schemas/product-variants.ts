@@ -52,6 +52,12 @@ export const productVariants = pgTable(
 		allowBackorder: boolean("allow_backorder").notNull().default(false),
 		/** The panel warns when available stock is at or below it; null: never. */
 		lowStockThreshold: integer("low_stock_threshold"),
+		/** In grams, for shipping; null: unknown. */
+		weight: integer("weight"),
+		/** Sides of the package, in centimeters, for shipping; null: unknown. */
+		height: integer("height"),
+		width: integer("width"),
+		length: integer("length"),
 		createdAt: timestamp("created_at", { withTimezone: true })
 			.notNull()
 			.defaultNow(),
@@ -89,6 +95,10 @@ export const productVariants = pgTable(
 		check(
 			"product_variants_low_stock_threshold_not_negative",
 			sql`${table.lowStockThreshold} >= 0`,
+		),
+		check(
+			"product_variants_size_positive",
+			sql`${table.weight} > 0 and ${table.height} > 0 and ${table.width} > 0 and ${table.length} > 0`,
 		),
 		check(
 			"product_variants_id_uuid_v7",

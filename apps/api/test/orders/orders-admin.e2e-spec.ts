@@ -78,6 +78,7 @@ describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 		fixtures = await Fixtures.open();
 		store = await fixtures.tenant();
 		otherStore = await fixtures.tenant();
+		await fixtures.shippingMethod(store);
 		[staff, otherOwner] = await Promise.all([
 			fixtures.user(),
 			fixtures.user(),
@@ -124,7 +125,7 @@ describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 				id: second.id,
 				state: "awaiting_payment",
 				customer: { email: second.email, name: "Ana Souza" },
-				total: 2500,
+				total: 4000,
 			});
 		});
 
@@ -192,7 +193,11 @@ describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 				shippingAddress: { cep: "01310100" },
 				lines: [{ sku: order.sku, quantity: 3, unitPrice: 1000 }],
 				subtotal: 3000,
-				total: 3000,
+				shipping: 1500,
+				total: 4500,
+				shippingMethod: { name: "Frete fixo" },
+				trackingCode: null,
+				labelUrl: null,
 			});
 		});
 
@@ -289,6 +294,80 @@ describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 				).toBe(400);
 			},
 		);
+	});
+
+	describe("PUT /admin/orders/:id/shipment", () => {
+		const shipment = {
+			trackingCode: "AA123456789BR",
+			labelUrl: "https://labels.example.com/aa123.pdf",
+		};
+
+		it("records the tracking code and label of a paid order; the buyer sees the code", async () => {
+			const order = await placedOrder();
+			await transition(order.id, "paid");
+
+			const response = await panel.put(
+				`/admin/orders/${order.id}/shipment`,
+				shipment,
+			);
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toMatchObject(shipment);
+			const seen = (
+				await cart("GET", "/store/cart", { token: order.token })
+			).json<Record<string, unknown>>();
+			expect(seen.trackingCode).toBe(shipment.trackingCode);
+			expect(seen).not.toHaveProperty("labelUrl");
+			const cleared = await panel.put(
+				`/admin/orders/${order.id}/shipment`,
+				{
+					trackingCode: null,
+					labelUrl: null,
+				},
+			);
+			expect(cleared.json()).toMatchObject({
+				trackingCode: null,
+				labelUrl: null,
+			});
+		});
+
+		it("answers 409 before payment, and 400 to an invalid label or partial body", async () => {
+			const order = await placedOrder();
+			expect(
+				(
+					await panel.put(
+						`/admin/orders/${order.id}/shipment`,
+						shipment,
+					)
+				).statusCode,
+			).toBe(409);
+			await transition(order.id, "paid");
+			for (const body of [
+				{ ...shipment, labelUrl: "http://labels.example.com/a.pdf" },
+				{ trackingCode: "AA123456789BR" },
+			]) {
+				expect(
+					(
+						await panel.put(
+							`/admin/orders/${order.id}/shipment`,
+							body,
+						)
+					).statusCode,
+				).toBe(400);
+			}
+		});
+
+		it("answers 404 to another store's order", async () => {
+			const order = await placedOrder();
+			expect(
+				(
+					await otherPanel.put(
+						`/admin/orders/${order.id}/shipment`,
+						shipment,
+					)
+				).statusCode,
+			).toBe(404);
+		});
 	});
 
 	describe("history and notes", () => {

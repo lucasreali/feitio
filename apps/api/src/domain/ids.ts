@@ -97,3 +97,7 @@ export const OrderLineId = entityId("OrderLineId");
 /** Id of an entry of an order's history. */
 export type OrderEventId = Brand<string, "OrderEventId">;
 export const OrderEventId = entityId("OrderEventId");
+
+/** Id of a way a store ships: a fixed price, a carrier's service or pickup. */
+export type ShippingMethodId = Brand<string, "ShippingMethodId">;
+export const ShippingMethodId = entityId("ShippingMethodId");

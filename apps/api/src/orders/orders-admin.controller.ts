@@ -7,6 +7,7 @@ import {
 	NotFoundException,
 	Param,
 	Post,
+	Put,
 	Query,
 } from "@nestjs/common";
 import {
@@ -16,11 +17,13 @@ import {
 	ApiQuery,
 } from "@nestjs/swagger";
 import { PanelScoped } from "../auth/panel-scoped.decorator.js";
+import { HttpsUrl } from "../domain/https-url.js";
 import { CustomerId, OrderId } from "../domain/ids.js";
 import { parsePage } from "../http/page.js";
 import {
 	invalid,
 	objectBody,
+	optionalText,
 	pathId,
 	requiredText,
 } from "../http/request-body.js";
@@ -32,6 +35,7 @@ import {
 	OrderEventPageDto,
 	OrderNoteDto,
 	OrderPageDto,
+	OrderShipmentDto,
 	OrderTransitionDto,
 } from "./order.dto.js";
 import { ORDER_STATES, type OrderState } from "./order-state.js";
@@ -39,6 +43,7 @@ import { OrdersRepository } from "./orders.repository.js";
 
 const SEARCH_MAX = 120;
 const NOTE_MAX = 2000;
+const TRACKING_CODE_MAX = 60;
 
 const pageQueries = () =>
 	applyDecorators(
@@ -141,6 +146,45 @@ export class OrdersAdminController {
 		const orderId = pathId(id, OrderId);
 		const to = orderState(objectBody(body, ["state"]).state, "state");
 		const order = await this.orders.transition(orderId, to, session.userId);
+		if (!order) {
+			throw new NotFoundException();
+		}
+		return order;
+	}
+
+	/**
+	 * Records the shipment of a paid order: the carrier's tracking code,
+	 * which the buyer sees, and where to print the label. Replaces both.
+	 */
+	@Put(":id/shipment")
+	@PanelScoped()
+	@ApiBadRequestResponse({ description: "Invalid tracking code or label." })
+	@ApiNotFoundResponse({ description: "The store has no such order." })
+	@ApiConflictResponse({
+		description: "The order is not paid, or is delivered or cancelled.",
+	})
+	async setShipment(
+		@Param("id") id: string,
+		@Body() body: OrderShipmentDto,
+	): Promise<OrderDto> {
+		const orderId = pathId(id, OrderId);
+		const fields = objectBody(body, ["trackingCode", "labelUrl"]);
+		if (!("trackingCode" in fields && "labelUrl" in fields)) {
+			invalid("Send both trackingCode and labelUrl; null clears one");
+		}
+		const order = await this.orders.setShipment(orderId, {
+			trackingCode: optionalText(
+				fields.trackingCode,
+				"trackingCode",
+				TRACKING_CODE_MAX,
+			),
+			labelUrl:
+				fields.labelUrl === null
+					? null
+					: (typeof fields.labelUrl === "string" &&
+							HttpsUrl.tryParse(fields.labelUrl)) ||
+						invalid("labelUrl must be null or an https:// address"),
+		});
 		if (!order) {
 			throw new NotFoundException();
 		}

@@ -2,7 +2,7 @@ import {
 	FastifyAdapter,
 	type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { Test } from "@nestjs/testing";
+import { Test, type TestingModuleBuilder } from "@nestjs/testing";
 import { asc } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
@@ -111,17 +111,36 @@ export class Fixtures {
 		return { id, email, name, cpf, password };
 	}
 
-	async member(tenant: TestTenant, user: TestUser, role: MembershipRole) {
+	member(tenant: TestTenant, user: TestUser, role: MembershipRole) {
+		return this.inTenant(
+			tenant,
+			"insert into memberships (tenant_id, user_id, role) values ($1, $2, $3)",
+			[tenant.id, user.id, role],
+		);
+	}
+
+	/** A fixed-price shipping method (R$ 15,00), so the store's carts can be placed. */
+	shippingMethod(tenant: TestTenant) {
+		return this.inTenant(
+			tenant,
+			`insert into shipping_methods (tenant_id, name, kind, config) values ($1, 'Frete fixo', 'fixed', '{"price": 1500, "freeAbove": null, "deliveryDays": null}')`,
+			[tenant.id],
+		);
+	}
+
+	/** One statement as the application role, in the tenant. */
+	private async inTenant(
+		tenant: TestTenant,
+		statement: string,
+		params: unknown[],
+	) {
 		await this.app.query("begin");
 		try {
 			await this.app.query(
 				"select set_config('app.tenant_id', $1, true)",
 				[tenant.id],
 			);
-			await this.app.query(
-				"insert into memberships (tenant_id, user_id, role) values ($1, $2, $3)",
-				[tenant.id, user.id, role],
-			);
+			await this.app.query(statement, params);
 			await this.app.query("commit");
 		} catch (error) {
 			await this.app.query("rollback");
@@ -196,14 +215,19 @@ function testDatabase(): Database {
 	return drizzle({ client: pool, schema: schemas });
 }
 
-/** The whole API, configured like main.ts, ready for app.inject(). */
-export async function startApp(): Promise<NestFastifyApplication> {
-	const moduleRef = await Test.createTestingModule({
-		imports: [AppModule],
-	})
-		.overrideProvider(DATABASE)
-		.useFactory({ factory: testDatabase })
-		.compile();
+/**
+ * The whole API, configured like main.ts, ready for app.inject(). `override`
+ * replaces more providers, such as a carrier's API.
+ */
+export async function startApp(
+	override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (b) =>
+		b,
+): Promise<NestFastifyApplication> {
+	const moduleRef = await override(
+		Test.createTestingModule({ imports: [AppModule] })
+			.overrideProvider(DATABASE)
+			.useFactory({ factory: testDatabase }),
+	).compile();
 	const app = moduleRef.createNestApplication<NestFastifyApplication>(
 		new FastifyAdapter(),
 	);
@@ -355,8 +379,9 @@ export const testAddress = {
 };
 
 /**
- * A cart ready to be placed: `quantity` units of the variant, a guest buyer
- * and a shipping address. Answers its token.
+ * A cart ready to be placed: `quantity` units of the variant, a guest buyer,
+ * a shipping address and the store's cheapest shipping (the store needs a
+ * method, see Fixtures.shippingMethod). Answers its token.
  */
 export async function readyCart(
 	cart: CartClient,
@@ -384,6 +409,16 @@ export async function readyCart(
 		if (response.statusCode >= 300) {
 			throw new Error(`Cart setup failed: ${response.body}`);
 		}
+	}
+	const [cheapest] = (
+		await cart("GET", "/store/cart/shipping-options", { token })
+	).json<{ id: string }[]>();
+	const chosen = await cart("PUT", "/store/cart/shipping-method", {
+		token,
+		payload: { methodId: cheapest?.id },
+	});
+	if (chosen.statusCode >= 300) {
+		throw new Error(`Cart setup failed: ${chosen.body}`);
 	}
 	return token;
 }

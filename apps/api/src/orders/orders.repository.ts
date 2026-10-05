@@ -1,10 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
 import { and, count, desc, eq, ilike, ne, type SQL, sql } from "drizzle-orm";
 import { contains } from "../customers/customers.repository.js";
 import { customers } from "../database/schemas/customers.js";
 import { orderEvents } from "../database/schemas/order-events.js";
 import { orders } from "../database/schemas/orders.js";
 import { users } from "../database/schemas/users.js";
+import type { HttpsUrl } from "../domain/https-url.js";
 import type { CustomerId, OrderId, UserId } from "../domain/ids.js";
 import type { Page } from "../http/page.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
@@ -13,7 +14,7 @@ import {
 	type TenantTransaction,
 } from "../tenancy/tenant-database.js";
 import type { OrderDto, OrderEventDto, OrderSummaryDto } from "./order.dto.js";
-import { linesOf } from "./order-lines.js";
+import { linesOf, shippingMethodOf } from "./order-lines.js";
 import type { OrderState } from "./order-state.js";
 import { transitionOrder } from "./order-transitions.js";
 
@@ -70,6 +71,15 @@ const toEntry = ({
 	// A removed panel user leaves the entry without its author.
 	user: userId && userName ? { id: userId, name: userName } : null,
 });
+
+/** The carrier's tracking code and the label to print, when shipping. */
+export interface Shipment {
+	trackingCode: string | null;
+	labelUrl: HttpsUrl | null;
+}
+
+/** States in which an order has a shipment to record: paid until shipped. */
+const SHIPPABLE: OrderState[] = ["paid", "preparing", "shipped"];
 
 /** The current tenant's orders, as the panel sees and moves them. */
 @Injectable()
@@ -136,6 +146,33 @@ export class OrdersRepository {
 				? this.view(tx, id)
 				: undefined,
 		);
+	}
+
+	/**
+	 * Records the shipment of a paid order; undefined when the store has no
+	 * such order, 409 before payment or after delivery or cancellation.
+	 */
+	setShipment(
+		id: OrderId,
+		shipment: Shipment,
+	): Promise<OrderDto | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const [order] = await tx
+				.select({ state: orders.state })
+				.from(orders)
+				.where(eq(orders.id, id))
+				.for("update");
+			if (!order) {
+				return undefined;
+			}
+			if (!SHIPPABLE.includes(order.state)) {
+				throw new ConflictException(
+					`An order in ${order.state} has no shipment to record`,
+				);
+			}
+			await tx.update(orders).set(shipment).where(eq(orders.id, id));
+			return this.view(tx, id);
+		});
 	}
 
 	/** Newest first; undefined when the store has no such order. */
@@ -211,6 +248,9 @@ export class OrdersRepository {
 				discount: orders.discount,
 				shipping: orders.shipping,
 				total: orders.total,
+				shippingMethod: shippingMethodOf,
+				trackingCode: orders.trackingCode,
+				labelUrl: orders.labelUrl,
 				placedAt: orders.placedAt,
 				createdAt: orders.createdAt,
 				updatedAt: orders.updatedAt,

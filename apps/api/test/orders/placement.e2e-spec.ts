@@ -51,6 +51,7 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 		app = await startApp();
 		fixtures = await Fixtures.open();
 		store = await fixtures.tenant();
+		await fixtures.shippingMethod(store);
 		owner = await fixtures.user();
 		await fixtures.member(store, owner, "owner");
 		panel = panelClient(app, await signIn(app, owner));
@@ -77,7 +78,10 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 			const order = response.json<Cart>();
 			expect(order).toMatchObject({
 				state: "awaiting_payment",
-				total: 4000,
+				subtotal: 4000,
+				shipping: 1500,
+				total: 5500,
+				shippingMethod: { name: "Frete fixo", deliveryDays: null },
 			});
 			expect(order.number).toBeGreaterThan(0);
 			expect(await stockOf(variantId)).toMatchObject({
@@ -91,6 +95,7 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 
 		it("numbers a store's orders one after another, also when placed at once", async () => {
 			const otherStore = await fixtures.tenant();
+			await fixtures.shippingMethod(otherStore);
 			const otherOwner = await fixtures.user();
 			await fixtures.member(otherStore, otherOwner, "owner");
 			const otherPanel = panelClient(app, await signIn(app, otherOwner));

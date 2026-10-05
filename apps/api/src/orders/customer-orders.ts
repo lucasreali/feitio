@@ -31,6 +31,8 @@ export async function customerOrders(
 			discount: orders.discount,
 			shipping: orders.shipping,
 			total: orders.total,
+			trackingCode: orders.trackingCode,
+			labelUrl: orders.labelUrl,
 			placedAt: orders.placedAt,
 			createdAt: orders.createdAt,
 		})
@@ -46,8 +48,8 @@ export async function customerOrders(
 }
 
 /**
- * Before a customer is erased: removes their carts and clears the addresses
- * of their other orders, which keep their lines and totals and lose the
+ * Before a customer is erased: removes their carts and clears the addresses,
+ * tracking codes and labels of their other orders, which keep their lines and totals and lose the
  * customer with the erasure. 409 while an order is still to be paid or
  * delivered. Locks the customer's orders first, so none is placed meanwhile.
  */
@@ -72,7 +74,13 @@ export async function releaseCustomerOrders(
 		);
 	await tx
 		.update(orders)
-		.set({ shippingAddress: null, billingAddress: null })
+		// The label carries the recipient's name and address.
+		.set({
+			shippingAddress: null,
+			billingAddress: null,
+			trackingCode: null,
+			labelUrl: null,
+		})
 		.where(
 			and(
 				eq(orders.customerId, customerId),
