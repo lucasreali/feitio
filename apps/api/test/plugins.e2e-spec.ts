@@ -157,12 +157,18 @@ describe("Fastify plugins (e2e)", () => {
 			});
 			expect(spec.statusCode).toBe(200);
 			expect(spec.json()).toHaveProperty("openapi");
-			// Panel routes declare it with @PanelScoped().
+			// Panel routes declare the session with @PanelScoped(), and buyer
+			// routes the bearer token with @CustomerScoped().
 			expect(spec.json().components.securitySchemes).toEqual({
 				session: {
 					type: "apiKey",
 					in: "cookie",
 					name: readSessionConfig().cookieName,
+				},
+				customer: {
+					type: "http",
+					scheme: "bearer",
+					bearerFormat: "opaque",
 				},
 			});
 		});

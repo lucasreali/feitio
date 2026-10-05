@@ -68,7 +68,11 @@ export async function configureApp(app: NestFastifyApplication) {
 		.setTitle("Feitio API")
 		.setVersion("1.0")
 		.addCookieAuth(session.cookieName, { type: "apiKey" }, SESSION_SECURITY)
-		.addBearerAuth({ type: "http", scheme: "bearer" }, CUSTOMER_SECURITY)
+		.addBearerAuth(
+			// Nest would call it a JWT; it is an opaque random token.
+			{ type: "http", scheme: "bearer", bearerFormat: "opaque" },
+			CUSTOMER_SECURITY,
+		)
 		.build();
 	SwaggerModule.setup(
 		DOCS_PATH.slice(1),
