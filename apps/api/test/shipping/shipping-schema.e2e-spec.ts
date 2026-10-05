@@ -9,7 +9,7 @@ const newMethod = (name = "Sedex") =>
 const newOrder = (method: string) =>
 	`insert into orders (tenant_id, token_hash, shipping_method_id, shipping_method_name) values ($1, encode(sha256(gen_random_uuid()::text::bytea), 'hex'), '${method}', 'Sedex')`;
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Shipping schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

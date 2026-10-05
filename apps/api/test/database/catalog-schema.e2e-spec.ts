@@ -28,7 +28,7 @@ interface CatalogRows {
 	collection: string;
 }
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Catalog schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

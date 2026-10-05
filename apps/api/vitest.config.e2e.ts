@@ -1,13 +1,10 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { defineConfig } from "vitest/config";
+import { loadTestEnv } from "./scripts/test-env.ts";
 
-// The app module needs DATABASE_URL, so e2e tests read the same .env as the API.
-const envFile = join(import.meta.dirname, ".env");
-if (existsSync(envFile)) {
-	process.loadEnvFile(envFile);
-}
+// .env.test only, never .env; refuses services that are not local, since the
+// tests create and delete stores (`pnpm test:e2e:setup` starts them).
+loadTestEnv(import.meta.dirname);
 
 export default defineConfig({
 	plugins: [tsconfigPaths()],
@@ -17,9 +14,8 @@ export default defineConfig({
 		root: import.meta.dirname,
 		include: ["**/*.e2e-spec.ts"],
 		// Each file holds up to 5 database connections (the API's pool of 3,
-		// see startApp, and the fixtures' 2 clients). Supabase's session pooler
-		// accepts 15 clients, shared with anything else using the database, so
-		// more files at once fail with EMAXCONNSESSION.
-		maxWorkers: 2,
+		// see startApp, and the fixtures' 2 clients), well under the local
+		// PostgreSQL's 100.
+		maxWorkers: 4,
 	},
 });

@@ -13,7 +13,7 @@ import {
 } from "../../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 
-// Runs against the real PostgreSQL in .env: DATABASE_URL is the application
+// Runs against the real PostgreSQL in .env.test: DATABASE_URL is the application
 // role (feitio_app), MIGRATION_DATABASE_URL the owner of the tables.
 describe("Tenant isolation (e2e)", () => {
 	let tenantDb: TenantDatabase;

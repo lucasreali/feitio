@@ -4,6 +4,7 @@ coverage/
 *.tsbuildinfo
 .env*
 !.env.example
+!.env.test.example
 /.cortex/*
 !/.cortex/config
 !/.cortex/decisions/

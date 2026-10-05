@@ -18,7 +18,7 @@ interface Method {
 	enabled: boolean;
 }
 
-// Runs against the real PostgreSQL and Valkey in .env.
+// Runs against the real PostgreSQL and Valkey in .env.test.
 describe("Shipping methods panel routes (e2e)", () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

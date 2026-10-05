@@ -1,0 +1,44 @@
+# Disposable services for the API e2e suite (.env.test.example), used locally
+# and in CI. A compose project of its own, on ports of its own, so starting or
+# removing it never touches docker-compose.yml's development Valkey. Nothing is
+# kept: `pnpm --filter api test:services:down` wipes every service's data.
+name: feitio-api-test
+
+services:
+  postgres:
+    # Supabase's major; the same image as production's major everywhere.
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: feitio
+    # In memory: throwaway data, and fsync costs nothing.
+    tmpfs:
+      - /var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  storage:
+    # S3-compatible server. scripts/e2e-setup.ts waits for its /health.
+    image: rustfs/rustfs:1.0.0
+    environment:
+      RUSTFS_ACCESS_KEY: feitio-test
+      RUSTFS_SECRET_KEY: feitio-test-secret
+    ports:
+      - "9100:9000"
+
+  valkey:
+    image: valkey/valkey:9.1.2-alpine
+    # BullMQ requires noeviction. No persistence: test data is thrown away.
+    command: ["valkey-server", "--save", "", "--appendonly", "no", "--maxmemory-policy", "noeviction"]
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 15

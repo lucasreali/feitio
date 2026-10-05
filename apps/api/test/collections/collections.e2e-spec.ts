@@ -25,7 +25,7 @@ interface Collection {
 	facetValueIds: string[];
 }
 
-// Runs against the real PostgreSQL and Valkey in .env. Each test signs in
+// Runs against the real PostgreSQL and Valkey in .env.test. Each test signs in
 // to a fresh store, so collection lists start empty.
 describe("Collections (e2e)", () => {
 	let app: NestFastifyApplication;

@@ -19,7 +19,7 @@ interface Option {
 	deliveryDays: number | null;
 }
 
-// Runs against the real PostgreSQL and Valkey in .env, with a fake Melhor
+// Runs against the real PostgreSQL and Valkey in .env.test, with a fake Melhor
 // Envio: nothing leaves the machine.
 describe("Shipping simulation for a product (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;

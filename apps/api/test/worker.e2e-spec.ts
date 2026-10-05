@@ -10,7 +10,7 @@ import { TenantDatabase } from "../src/tenancy/tenant-database.js";
 import { Fixtures, type TestTenant, testWorker } from "./fixtures.js";
 
 // Runs the worker module (relay and worker) against the real PostgreSQL and
-// Valkey in .env.
+// Valkey in .env.test.
 describe("Worker (e2e)", () => {
 	let worker: TestingModule;
 	let fixtures: Fixtures;

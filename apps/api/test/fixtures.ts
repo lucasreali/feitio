@@ -58,7 +58,7 @@ export interface TestUser {
 }
 
 /**
- * Creates tenants, users and memberships in the real PostgreSQL of .env, the
+ * Creates tenants, users and memberships in the real PostgreSQL of .env.test, the
  * way production data is written (tenants and users by the owner,
  * memberships by the application role in the tenant), and deletes them all
  * in close().
@@ -200,9 +200,9 @@ export async function signIn(
 }
 
 /**
- * The API's database on a small pool. Three test files run at once, each
- * with its app and fixtures, against a pooler of 15 clients; the default
- * pool of 10 per app, idle connections kept 10 s, runs it out.
+ * The API's database on a small pool. Several test files run at once (see
+ * maxWorkers), some with an app and a worker, against PostgreSQL's 100
+ * connections; the default pool of 10 per app would run them out.
  */
 function testDatabase(): Database {
 	const pool = new pg.Pool({

@@ -33,7 +33,7 @@ interface HistoryEntry {
 	user: { id: string; name: string } | null;
 }
 
-// Runs against the real PostgreSQL and Valkey in .env, on stores of its own.
+// Runs against the real PostgreSQL and Valkey in .env.test, on stores of its own.
 // Most tests build orders through the API, a remote round trip per step.
 describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;

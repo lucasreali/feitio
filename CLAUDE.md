@@ -14,7 +14,7 @@ pnpm monorepo. `README.md` describes the target state and is the plan to follow.
 - `apps/admin` (port 3001) and `apps/checkout` (port 3002): React SPAs on Vite. Their shared rules are in `docs/ui-apps.md`.
 - `packages/storefront-starter` (port 3003): TanStack Start template, copied out of the monorepo to start each client's store.
 - `packages/config`: shared tsconfigs (`tsconfig.node.json`, `tsconfig.react.json`).
-- `.github/workflows/ci.yml`: the `Checks` job runs Biome, build, unit tests and the API e2e suite (against local PostgreSQL, Valkey and RustFS) on every pull request and push to `main`. Node comes from `.nvmrc`.
+- `.github/workflows/ci.yml`: the `Checks` job runs Biome, build, unit tests and the API e2e suite (on the same `docker-compose.test.yml` services and `.env.test.example` values as a local run) on every pull request and push to `main`. Node comes from `.nvmrc`.
 
 Not created yet: the root `dev` and `fix` scripts.
 
@@ -24,7 +24,8 @@ Not created yet: the root `dev` and `fix` scripts.
 - `pnpm dev:api`, `pnpm dev:admin`, `pnpm dev:checkout`, `pnpm dev:storefront`: one project in development. `pnpm dev:worker` runs the API's worker process (events and queues).
 - `pnpm check`: `biome check --write` (formats and applies safe lint fixes).
 - `pnpm test`: every project's unit and UI tests. The API integration and e2e suite is separate: `pnpm --filter api test:e2e`.
-- `pnpm services:up` / `pnpm services:down`: local Valkey (Docker).
+- `pnpm services:up` / `pnpm services:down`: local Valkey (Docker), for development.
+- `pnpm --filter api test:e2e:setup`: starts the e2e suite's own disposable services (`apps/api/docker-compose.test.yml`: PostgreSQL, RustFS and Valkey) and prepares them (role, migrations, buckets); safe to run again. `pnpm --filter api test:services:down` removes them and their data. Without `docker` in the shell (WSL without Docker Desktop's integration), start that compose file from Docker Desktop and run `node scripts/e2e-setup.ts` in `apps/api`.
 - pnpm 12 passes arguments to scripts as they are; do not add `--`, which makes Vitest ignore the filter. `--reporter` is the exception, because pnpm takes it for itself: use `pnpm exec vitest run ... --reporter=verbose`.
 
 ## Dependencies
@@ -102,12 +103,12 @@ Every new piece of code is built test first.
 ### Where tests live
 
 - API unit tests: `apps/api/src/**/<name>.spec.ts`, next to the code.
-- API integration and e2e tests: `apps/api/test/<module>/<name>.e2e-spec.ts`, in the folder of the `src/` module they cover. They need `apps/api/.env`, Valkey (`pnpm services:up`) and the PostgreSQL and S3 configured there.
+- API integration and e2e tests: `apps/api/test/<module>/<name>.e2e-spec.ts`, in the folder of the `src/` module they cover. They read `apps/api/.env.test` (copy `.env.test.example`), never `.env`, and run against the local services of `pnpm --filter api test:e2e:setup`; the suite refuses to start when the database, S3 or Valkey are not local.
 - UI tests: `src/**/<name>.test.ts(x)`, next to the code (jsdom + Testing Library).
 
 ### Commands
 
-- Whole monorepo: `pnpm test`, then `pnpm --filter api test:e2e`.
+- Whole monorepo: `pnpm test`, then `pnpm --filter api test:e2e` (after `pnpm --filter api test:e2e:setup` once per session).
 - One project: `pnpm test --project <name>` (`api`, `admin`, `checkout`, `storefront-starter`), or `pnpm --filter <project> test`.
 - One file: `pnpm test <path>` from the root, or `pnpm --filter api test:e2e test/<module>/<name>.e2e-spec.ts` for an e2e file.
 - One test by name: add `-t "<part of the name>"`.

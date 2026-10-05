@@ -20,7 +20,7 @@ const handler = (name: string, events: EventHandler["events"]) => ({
 	handle: async () => {},
 });
 
-// Runs against the real PostgreSQL and Valkey in .env; the module is not
+// Runs against the real PostgreSQL and Valkey in .env.test; the module is not
 // started, so the test drives the relay.
 describe("Event relay (e2e)", () => {
 	let moduleRef: TestingModule;

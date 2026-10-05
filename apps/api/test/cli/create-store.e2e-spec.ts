@@ -13,7 +13,7 @@ import { TenantSlug } from "../../src/domain/tenant-slug.js";
 import { SessionService } from "../../src/session/session.service.js";
 import { randomCpf } from "../fixtures.js";
 
-// Runs against the real PostgreSQL and Valkey in .env, with the same two
+// Runs against the real PostgreSQL and Valkey in .env.test, with the same two
 // connections the command uses.
 describe("create-store command (e2e)", () => {
 	let app: NestFastifyApplication;

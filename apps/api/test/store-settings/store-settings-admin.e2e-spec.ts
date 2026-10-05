@@ -12,7 +12,7 @@ import { TenantContext } from "../../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 import { Fixtures, type TestTenant, type TestUser } from "../fixtures.js";
 
-// Runs against the real PostgreSQL and Valkey in .env.
+// Runs against the real PostgreSQL and Valkey in .env.test.
 describe("PATCH /admin/store/settings (e2e)", () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

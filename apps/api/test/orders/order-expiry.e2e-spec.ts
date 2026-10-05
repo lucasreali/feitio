@@ -29,7 +29,7 @@ interface OrderSummary {
 }
 
 // Runs the API (to build orders) and the worker's expiry against the real
-// PostgreSQL and Valkey in .env.
+// PostgreSQL and Valkey in .env.test.
 describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

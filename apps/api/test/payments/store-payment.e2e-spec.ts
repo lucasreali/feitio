@@ -55,7 +55,7 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 
 	beforeAll(async () => {
 		asaas = fakeAsaas();
-		// A fee of its own, whatever .env says, so the split is always sent.
+		// A fee of its own, whatever .env.test says, so the split is always sent.
 		app = await startApp((b) =>
 			b
 				.overrideProvider(ASAAS_API)

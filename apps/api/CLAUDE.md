@@ -8,7 +8,7 @@ Rules for the API. The root `CLAUDE.md` (structure, commands, dependencies, TDD,
 - ESM with `module: nodenext`: local imports end in `.js`, including through the `@/*` alias (`src/*`, tsconfig `paths`, no `baseUrl`). `nest build` rewrites the alias; Vitest resolves it with `vite-tsconfig-paths`.
 - Biome's `useImportType` is off here: imports of injected classes must stay value imports, or Nest dependency injection breaks.
 - OpenAPI comes from code: the `@nestjs/swagger` CLI plugin (`nest-cli.json`) reads controllers and `*.dto.ts` files at `nest build`/`nest start`, so DTOs need no `@ApiProperty` and JSDoc becomes descriptions. The plugin does not run under Vitest. The API serves `/openapi.json` and Swagger UI at `/docs`.
-- `.env` lives in `apps/api` and is read with `process.loadEnvFile()` by `main.ts`, `drizzle.config.ts`, `scripts/` and the e2e Vitest config. Each module fails at startup with a clear message when a variable it needs is missing (`DATABASE_URL`, `STORAGE_*`, `VALKEY_URL`, `COOKIE_SECRET`, `MELHOR_ENVIO_*`, `ASAAS_*`, `PAYMENT_*`, `PUBLIC_API_URL`); read required variables with `requireEnv` (`src/config/env.ts`).
+- `.env` lives in `apps/api` and is read with `process.loadEnvFile()` by `main.ts`, `drizzle.config.ts` and `scripts/`. The e2e Vitest config reads `.env.test` instead (see Tests). Each module fails at startup with a clear message when a variable it needs is missing (`DATABASE_URL`, `STORAGE_*`, `VALKEY_URL`, `COOKIE_SECRET`, `MELHOR_ENVIO_*`, `ASAAS_*`, `PAYMENT_*`, `PUBLIC_API_URL`); read required variables with `requireEnv` (`src/config/env.ts`).
 
 ## Adopting libraries
 
@@ -29,6 +29,7 @@ The root rule applies. Here a library must also work with NestJS on Fastify (Exp
 - Two database users:
   - `feitio_app` (`DATABASE_URL`) is the API's user: it owns no table and cannot bypass RLS. `pnpm db:roles` creates or updates it from the name and password in `DATABASE_URL`.
   - The owner (`MIGRATION_DATABASE_URL`) runs `db:roles`, `db:migrate` and `db:seed`. On a new database, run `db:roles` before `db:migrate`.
+- The e2e suite never uses Supabase: it runs on a disposable local PostgreSQL 17 (`docker-compose.test.yml`), which `pnpm test:e2e:setup` prepares with `db:roles` and `db:migrate`.
 - Supabase: session pooler (port 5432; the 6543 transaction pooler breaks drizzle-kit's advisory lock), with `sslmode=verify-full&sslrootcert=certs/prod-ca-2021.crt`. The CA lives in `certs/` (gitignored); the path is relative to `apps/api`.
 - Entity ids are UUID v7 (time-ordered). The database generates them with `uuid_generate_v7()` (migration 0005; PostgreSQL 17 has no built-in v7), and `tenants` refuses other versions on new rows (`CHECK ... NOT VALID`, so older v4 rows stay). In code, ids are branded types in `src/domain/ids.ts` with `generate()`. Never derive uniqueness from an id's prefix: in v7 it is the creation time.
 - Vendor neutrality: Supabase is only plain PostgreSQL and S3, and nothing here is Supabase-specific. Never add `supabase-js` or another vendor SDK; switching providers must only change env vars.
@@ -214,6 +215,8 @@ Wrapping primitives pays off for some values and weighs on the code if applied t
 ## Tests
 
 - Unit: `*.spec.ts` next to the code, in `src/` or `scripts/` (`pnpm test --project api`).
-- Integration and e2e: `test/<module>/*.e2e-spec.ts`, mirroring `src/` (`test/auth/`, `test/assets/`...; `plugins.e2e-spec.ts` covers `src/app.setup.ts` and sits at the root) (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env`. Tenant tests create random tenants as the owner and delete them at the end.
+- Integration and e2e: `test/<module>/*.e2e-spec.ts`, mirroring `src/` (`test/auth/`, `test/assets/`...; `plugins.e2e-spec.ts` covers `src/app.setup.ts` and sits at the root) (`pnpm --filter api test:e2e`), against the real PostgreSQL (both database URLs), Valkey and S3 in `.env.test`. Tenant tests create random tenants as the owner and delete them at the end.
+- Test services: `docker-compose.test.yml` (its own compose project: PostgreSQL 17 on 5433, RustFS on 9100, Valkey on 6380, nothing persisted), the same in CI. `pnpm test:e2e:setup` starts them, waits for them, runs `db:roles` and `db:migrate` and creates both buckets; it is idempotent. `pnpm test:services:down` throws them away.
+- `.env.test` (from `.env.test.example`, the values CI uses) is the suite's only environment: `vitest.config.e2e.ts` loads it over the process's variables and fails without it, never falling back to `.env`. `scripts/test-env.ts` refuses a database URL or `STORAGE_ENDPOINT` not on `localhost`/`127.0.0.1`, and database 0 of the development Valkey (port 6379), so a wrong file never deletes real data.
 - `test/fixtures.ts` creates tenants, users and memberships (`Fixtures`) and signs a user in to the panel with a CSRF token (`signIn`).
-- `startApp()` and `testWorker()` run on a database pool of 3, and the suite runs two files at once: Supabase's session pooler takes 15 clients. Keep a test's parallel requests few, and set up data one step at a time.
+- `startApp()` and `testWorker()` run on a database pool of 3, and the suite runs 4 files at once (`maxWorkers`), each with up to 5 connections, well under the local PostgreSQL's 100.

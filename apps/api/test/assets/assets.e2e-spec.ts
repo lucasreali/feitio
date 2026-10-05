@@ -45,7 +45,7 @@ function multipartFile(body: Buffer, contentType: string, field = "file") {
 // Public files may sit behind a CDN cache; a unique query string skips it.
 const fetchUncached = (url: string) => fetch(`${url}?v=${Date.now()}`);
 
-// Runs against the real PostgreSQL, Valkey and storage in .env.
+// Runs against the real PostgreSQL, Valkey and storage in .env.test.
 describe("Assets (e2e)", () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

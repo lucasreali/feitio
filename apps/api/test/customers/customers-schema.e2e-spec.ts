@@ -20,7 +20,7 @@ interface CustomerRows {
 const address = (customer: string, extra = "") =>
 	`insert into customer_addresses (tenant_id, customer_id, recipient, cep, street, number, neighborhood, city, state${extra ? `, ${extra}` : ""}) values ($1, '${customer}', 'Ana', '01310100', 'Av. Paulista', '1000', 'Bela Vista', 'São Paulo', 'SP'${extra ? ", true" : ""})`;
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Customers schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

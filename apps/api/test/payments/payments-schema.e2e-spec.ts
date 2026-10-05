@@ -10,7 +10,7 @@ const newPayment = (status = "pending", amount = 12990, refunded = 0) =>
 
 const newAccount = `insert into payment_accounts (tenant_id, gateway_account_id, wallet_id, credential, webhook_token_hash) values ($1, 'acc', 'wallet', 'sealed', 'hash') returning id`;
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Payments schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

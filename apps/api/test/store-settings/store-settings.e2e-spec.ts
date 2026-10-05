@@ -16,7 +16,7 @@ import { TenantSlug } from "../../src/domain/tenant-slug.js";
 import { TenantContext } from "../../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 
-// Runs against the real PostgreSQL in .env (see tenant-isolation.e2e-spec.ts).
+// Runs against the real PostgreSQL in .env.test (see tenant-isolation.e2e-spec.ts).
 describe("GET /store/settings (e2e)", () => {
 	let app: NestFastifyApplication;
 	let owner: pg.Client;

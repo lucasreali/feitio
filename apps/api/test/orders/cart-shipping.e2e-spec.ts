@@ -41,7 +41,7 @@ interface QuoteRequest {
 	products: { id: string; quantity: number; weight: number }[];
 }
 
-// Runs against the real PostgreSQL and Valkey in .env, with a fake Melhor
+// Runs against the real PostgreSQL and Valkey in .env.test, with a fake Melhor
 // Envio: nothing leaves the machine.
 describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;

@@ -26,7 +26,7 @@ import {
 	type TestTenant,
 } from "../fixtures.js";
 
-// Runs against the real PostgreSQL in .env.
+// Runs against the real PostgreSQL in .env.test.
 describe("Stock ledger (e2e)", () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

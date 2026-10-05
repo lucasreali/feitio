@@ -25,7 +25,7 @@ interface Product {
 	variants: { id: string; sku: string }[];
 }
 
-// Runs against the real PostgreSQL and Valkey in .env.
+// Runs against the real PostgreSQL and Valkey in .env.test.
 describe("Stock panel routes (e2e)", () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;

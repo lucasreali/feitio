@@ -31,7 +31,7 @@ interface Cart {
 	total: number;
 }
 
-// Runs against the real PostgreSQL and Valkey in .env.
+// Runs against the real PostgreSQL and Valkey in .env.test.
 // Most tests build orders through the API, a remote round trip per step.
 describe("Store cart routes (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;

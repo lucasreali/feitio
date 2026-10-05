@@ -97,7 +97,9 @@ Cada lojista é um tenant, e o isolamento entre eles é garantido pelo próprio 
 
 A API não sobe sem `DATABASE_URL`, sem as variáveis `STORAGE_*`, sem `VALKEY_URL` nem sem `COOKIE_SECRET`. A especificação OpenAPI fica em `http://localhost:3000/openapi.json` e a documentação em `http://localhost:3000/docs`.
 
-O código usa os arquivos pela interface `FileStorage` (`apps/api/src/storage/`), nunca pela implementação S3. O teste `pnpm --filter api test:e2e` envia, lê e remove arquivos de verdade no armazenamento configurado no `.env`, sempre num tenant aleatório que ele apaga no final.
+O código usa os arquivos pela interface `FileStorage` (`apps/api/src/storage/`), nunca pela implementação S3. O teste `pnpm --filter api test:e2e` envia, lê e remove arquivos de verdade, sempre num tenant aleatório que ele apaga no final.
+
+Os testes e2e da API nunca usam o Supabase nem o `.env`: rodam contra PostgreSQL, RustFS (S3) e Valkey locais e descartáveis (`apps/api/docker-compose.test.yml`), com os valores de `apps/api/.env.test` (copie de `apps/api/.env.test.example`). `pnpm --filter api test:e2e:setup` sobe e prepara esses serviços; a suíte se recusa a rodar se o banco, o S3 ou o Valkey não forem locais.
 
 ### Variáveis de ambiente da API
 

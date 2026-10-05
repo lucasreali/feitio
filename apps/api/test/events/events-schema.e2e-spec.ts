@@ -5,7 +5,7 @@ const eventTables = ["domain_events", "processed_jobs"];
 
 type Query = (text: string, params?: unknown[]) => Promise<pg.QueryResult>;
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Events schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

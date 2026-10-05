@@ -18,7 +18,7 @@ const newOrder = (extra = "", values = "") =>
 const newLine = (order: string, variant: string, quantity = 1) =>
 	`insert into order_lines (tenant_id, order_id, variant_id, product_name, sku, quantity, unit_price, position) values ($1, '${order}', '${variant}', 'Shirt', 'SHIRT', ${quantity}, 1290, 0)`;
 
-// Runs against the real PostgreSQL in .env, as the application role.
+// Runs against the real PostgreSQL in .env.test, as the application role.
 describe("Orders schema (e2e)", () => {
 	let fixtures: Fixtures;
 	let app: pg.Client;

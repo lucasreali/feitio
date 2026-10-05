@@ -20,7 +20,7 @@ interface Call {
 	key: string;
 }
 
-// Runs against the real PostgreSQL in .env; the BullMQ worker is not started.
+// Runs against the real PostgreSQL in .env.test; the BullMQ worker is not started.
 describe("Event jobs (e2e)", () => {
 	let moduleRef: TestingModule;
 	let fixtures: Fixtures;
