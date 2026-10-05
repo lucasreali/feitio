@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Guest } from "../customers/customer-input.js";
 import { guestCustomer } from "../customers/customers.repository.js";
 import { customers } from "../database/schemas/customers.js";
@@ -22,7 +22,8 @@ import {
 } from "../tenancy/tenant-database.js";
 import { MAX_QUANTITY } from "./cart-input.js";
 import { newCartToken } from "./cart-token.js";
-import type { CartDto, OrderLineDto } from "./order.dto.js";
+import type { CartDto } from "./order.dto.js";
+import { linesOf } from "./order-lines.js";
 import { transitionOrder } from "./order-transitions.js";
 
 /** Variants the store sells: of active products. */
@@ -124,26 +125,6 @@ async function reprice(tx: TenantTransaction, id: OrderId) {
 			total: sql`${subtotal} - ${orders.discount} + ${orders.shipping}`,
 		})
 		.where(eq(orders.id, id));
-}
-
-/** An order's lines, in the order they were added. */
-export function linesOf(
-	tx: TenantTransaction,
-	id: OrderId,
-): Promise<OrderLineDto[]> {
-	return tx
-		.select({
-			id: orderLines.id,
-			variantId: orderLines.variantId,
-			productName: orderLines.productName,
-			sku: orderLines.sku,
-			quantity: orderLines.quantity,
-			unitPrice: orderLines.unitPrice,
-			total: sql<number>`${orderLines.quantity} * ${orderLines.unitPrice}`,
-		})
-		.from(orderLines)
-		.where(eq(orderLines.orderId, id))
-		.orderBy(asc(orderLines.position));
 }
 
 /** The order as the store shows it. */

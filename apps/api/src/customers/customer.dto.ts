@@ -1,3 +1,4 @@
+import { CustomerOrderDto } from "../orders/order.dto.js";
 import { CustomerGroupRefDto } from "./customer-group.dto.js";
 import { CustomerEventDto } from "./customer-history.dto.js";
 
@@ -48,6 +49,8 @@ export class CustomerExportDto {
 	groups: CustomerGroupRefDto[];
 	/** Newest first. */
 	history: CustomerEventDto[];
+	/** Orders and carts, newest first. */
+	orders: CustomerOrderDto[];
 }
 
 export class CustomerSummaryDto {

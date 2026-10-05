@@ -1,9 +1,11 @@
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { SessionService } from "../../src/session/session.service.js";
 import {
+	cartClient,
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	sellableVariant,
 	signIn,
 	startApp,
 	type TestTenant,
@@ -21,7 +23,8 @@ const address = {
 };
 
 // Runs against the real PostgreSQL and Valkey in .env.
-describe("Customer data requests, LGPD (e2e)", () => {
+// Some tests build orders through the API, a remote round trip per step.
+describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;
 	let store: TestTenant;
@@ -73,6 +76,40 @@ describe("Customer data requests, LGPD (e2e)", () => {
 			note: "Asked for her data",
 		});
 		return { id: customer.id, email, token, group };
+	};
+
+	/**
+	 * A cart of the signed-in buyer with an address; placed unless `place` is
+	 * false. Answers the cart's token and, once placed, the panel's order id.
+	 */
+	const orderOf = async (buyerToken: string, { place = true } = {}) => {
+		const cart = cartClient(app, store);
+		const { variantId } = await sellableVariant(panel, { price: 1500 });
+		const token = (await cart("POST", "/store/cart")).json<{
+			token: string;
+		}>().token;
+		await cart("POST", "/store/cart/lines", {
+			token,
+			payload: { variantId, quantity: 2 },
+		});
+		await cart("PUT", "/store/cart/customer", {
+			token,
+			headers: { authorization: `Bearer ${buyerToken}` },
+		});
+		await cart("PUT", "/store/cart/shipping-address", {
+			token,
+			payload: address,
+		});
+		if (!place) {
+			return { token, id: undefined };
+		}
+		const { number } = (
+			await cart("POST", "/store/cart/place", { token })
+		).json<{ number: number }>();
+		const [{ id }] = (await panel.get(`/admin/orders?q=${number}`)).json<{
+			items: { id: string }[];
+		}>().items;
+		return { token, id: id as string };
 	};
 
 	beforeAll(async () => {
@@ -130,6 +167,7 @@ describe("Customer data requests, LGPD (e2e)", () => {
 				addresses: [expect.objectContaining({ cep: "01310100" })],
 				groups: [{ id: group.id, name: group.name }],
 				history: expect.any(Array),
+				orders: [],
 			});
 			expect(
 				data.history.map((entry: { kind: string }) => entry.kind),
@@ -140,6 +178,37 @@ describe("Customer data requests, LGPD (e2e)", () => {
 				"registered",
 			]);
 			expect(JSON.stringify(data)).not.toContain("scrypt");
+		});
+
+		it("hands over the customer's orders and carts", async () => {
+			const { id, token } = await buyer();
+			await orderOf(token);
+			await orderOf(token, { place: false });
+
+			const { orders } = (
+				await panel.get(`/admin/customers/${id}/export`)
+			).json<{ orders: unknown[] }>();
+
+			expect(orders).toEqual([
+				expect.objectContaining({
+					state: "cart",
+					number: null,
+					shippingAddress: expect.objectContaining({
+						cep: "01310100",
+					}),
+				}),
+				expect.objectContaining({
+					state: "awaiting_payment",
+					number: expect.any(Number),
+					lines: [
+						expect.objectContaining({
+							quantity: 2,
+							unitPrice: 1500,
+						}),
+					],
+					total: 3000,
+				}),
+			]);
 		});
 
 		it("answers 404 to another store's customer", async () => {
@@ -174,6 +243,70 @@ describe("Customer data requests, LGPD (e2e)", () => {
 			});
 			expect(again.statusCode).toBe(201);
 		});
+
+		it("detaches the customer's past orders, clearing their addresses, and removes their carts", async () => {
+			const { id, token } = await buyer();
+			const delivered = await orderOf(token);
+			for (const state of ["paid", "preparing", "shipped", "delivered"]) {
+				await panel.post(`/admin/orders/${delivered.id}/transitions`, {
+					state,
+				});
+			}
+			const cancelled = await orderOf(token);
+			await panel.post(`/admin/orders/${cancelled.id}/transitions`, {
+				state: "cancelled",
+			});
+			const cart = await orderOf(token, { place: false });
+
+			expect(
+				(await panel.delete(`/admin/customers/${id}`)).statusCode,
+			).toBe(204);
+
+			for (const order of [delivered, cancelled]) {
+				expect(
+					(await panel.get(`/admin/orders/${order.id}`)).json(),
+				).toMatchObject({
+					customer: null,
+					shippingAddress: null,
+					billingAddress: null,
+					lines: [{ quantity: 2 }],
+					total: 3000,
+				});
+			}
+			expect(
+				(
+					await cartClient(app, store)("GET", "/store/cart", {
+						token: cart.token,
+					})
+				).statusCode,
+			).toBe(404);
+		});
+
+		it.each(["awaiting_payment", "paid", "preparing", "shipped"])(
+			"answers 409 while an order is %s",
+			async (state) => {
+				const { id, token } = await buyer();
+				const order = await orderOf(token);
+				for (const next of ["paid", "preparing", "shipped"]) {
+					if (state === "awaiting_payment") {
+						break;
+					}
+					await panel.post(`/admin/orders/${order.id}/transitions`, {
+						state: next,
+					});
+					if (next === state) {
+						break;
+					}
+				}
+
+				expect(
+					(await panel.delete(`/admin/customers/${id}`)).statusCode,
+				).toBe(409);
+				expect(
+					(await panel.get(`/admin/customers/${id}`)).statusCode,
+				).toBe(200);
+			},
+		);
 
 		it("is only for the store's owner", async () => {
 			const { id } = await buyer();

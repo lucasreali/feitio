@@ -27,6 +27,10 @@ import type {
 	CustomerId,
 } from "../domain/ids.js";
 import type { Page } from "../http/page.js";
+import {
+	customerOrders,
+	releaseCustomerOrders,
+} from "../orders/customer-orders.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
 	TenantDatabase,
@@ -489,22 +493,26 @@ export class CustomersRepository {
 				addresses,
 				groups,
 				history: (await history(tx, id)).items,
+				orders: await customerOrders(tx, id),
 			};
 		});
 	}
 
 	/**
-	 * Deletes the customer with their addresses, groups and history. false
-	 * when the tenant has no such customer.
+	 * Deletes the customer with their addresses, groups, history and carts;
+	 * their other orders stay, without the customer and their addresses.
+	 * false when the tenant has no such customer; 409 while an order is still
+	 * to be paid or delivered.
 	 */
-	async erase(id: CustomerId): Promise<boolean> {
-		const rows = await this.tenantDb.run((tx) =>
-			tx
-				.delete(customers)
-				.where(eq(customers.id, id))
-				.returning({ id: customers.id }),
-		);
-		return rows.length > 0;
+	erase(id: CustomerId): Promise<boolean> {
+		return this.tenantDb.run(async (tx) => {
+			if (!(await lockCustomer(tx, id))) {
+				return false;
+			}
+			await releaseCustomerOrders(tx, id);
+			await tx.delete(customers).where(eq(customers.id, id));
+			return true;
+		});
 	}
 
 	/** Newest first; undefined when the tenant has no such customer. */

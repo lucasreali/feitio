@@ -12,8 +12,8 @@ import {
 	TenantDatabase,
 	type TenantTransaction,
 } from "../tenancy/tenant-database.js";
-import { linesOf } from "./cart.repository.js";
 import type { OrderDto, OrderEventDto, OrderSummaryDto } from "./order.dto.js";
+import { linesOf } from "./order-lines.js";
 import type { OrderState } from "./order-state.js";
 import { transitionOrder } from "./order-transitions.js";
 

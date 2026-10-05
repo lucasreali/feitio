@@ -192,3 +192,19 @@ export class OrderNoteDto {
 	/** 1 to 2000 characters, for the staff only. */
 	note: string;
 }
+
+/** An order or cart of a customer, as an LGPD export hands it over. Amounts in cents. */
+export class CustomerOrderDto {
+	id: string;
+	number: number | null;
+	state: OrderState;
+	shippingAddress: OrderAddressDto | null;
+	billingAddress: OrderAddressDto | null;
+	lines: OrderLineDto[];
+	subtotal: number;
+	discount: number;
+	shipping: number;
+	total: number;
+	placedAt: Date | null;
+	createdAt: Date;
+}

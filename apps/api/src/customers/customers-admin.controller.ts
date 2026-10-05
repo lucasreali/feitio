@@ -249,13 +249,19 @@ export class CustomersAdminController {
 	}
 
 	/**
-	 * Erases the customer, with their addresses, groups and history, and ends
-	 * their sessions in the store (LGPD deletion request). Cannot be undone.
+	 * Erases the customer, with their addresses, groups, history and carts,
+	 * and ends their sessions in the store (LGPD deletion request). Their
+	 * other orders stay for the store's records, without the customer and
+	 * the addresses. Cannot be undone.
 	 */
 	@Delete(":id")
 	@HttpCode(204)
 	@PanelScoped("owner")
 	@ApiNotFoundResponse({ description: "The store has no such customer." })
+	@ApiConflictResponse({
+		description:
+			"The customer has orders still to be paid or delivered; finish or cancel them first.",
+	})
 	async erase(@Param("id") id: string): Promise<void> {
 		const customerId = pathId(id, CustomerId);
 		if (!(await this.customers.erase(customerId))) {
