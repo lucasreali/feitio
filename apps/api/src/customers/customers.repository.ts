@@ -135,7 +135,8 @@ const address = {
 };
 
 /** `%` and `_` in a search are text, not wildcards. */
-const contains = (text: string) => `%${text.replace(/[\\%_]/g, "\\$&")}%`;
+export const contains = (text: string) =>
+	`%${text.replace(/[\\%_]/g, "\\$&")}%`;
 
 /**
  * Locks the customer's row for the rest of the transaction, so writes to its

@@ -22,7 +22,7 @@ import {
 } from "../tenancy/tenant-database.js";
 import { MAX_QUANTITY } from "./cart-input.js";
 import { newCartToken } from "./cart-token.js";
-import type { CartDto } from "./order.dto.js";
+import type { CartDto, OrderLineDto } from "./order.dto.js";
 import { transitionOrder } from "./order-transitions.js";
 
 /** Variants the store sells: of active products. */
@@ -126,6 +126,26 @@ async function reprice(tx: TenantTransaction, id: OrderId) {
 		.where(eq(orders.id, id));
 }
 
+/** An order's lines, in the order they were added. */
+export function linesOf(
+	tx: TenantTransaction,
+	id: OrderId,
+): Promise<OrderLineDto[]> {
+	return tx
+		.select({
+			id: orderLines.id,
+			variantId: orderLines.variantId,
+			productName: orderLines.productName,
+			sku: orderLines.sku,
+			quantity: orderLines.quantity,
+			unitPrice: orderLines.unitPrice,
+			total: sql<number>`${orderLines.quantity} * ${orderLines.unitPrice}`,
+		})
+		.from(orderLines)
+		.where(eq(orderLines.orderId, id))
+		.orderBy(asc(orderLines.position));
+}
+
 /** The order as the store shows it. */
 export async function cartView(
 	tx: TenantTransaction,
@@ -146,19 +166,7 @@ export async function cartView(
 		.from(orders)
 		.leftJoin(customers, eq(customers.id, orders.customerId))
 		.where(eq(orders.id, id));
-	const lines = await tx
-		.select({
-			id: orderLines.id,
-			variantId: orderLines.variantId,
-			productName: orderLines.productName,
-			sku: orderLines.sku,
-			quantity: orderLines.quantity,
-			unitPrice: orderLines.unitPrice,
-			total: sql<number>`${orderLines.quantity} * ${orderLines.unitPrice}`,
-		})
-		.from(orderLines)
-		.where(eq(orderLines.orderId, id))
-		.orderBy(asc(orderLines.position));
+	const lines = await linesOf(tx, id);
 	const { state, number, email, shippingAddress, billingAddress, ...totals } =
 		order;
 	return {

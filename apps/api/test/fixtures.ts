@@ -318,3 +318,48 @@ export async function sellableVariant(
 	}
 	return { productId: product.id, variantId, sku };
 }
+
+/** A Brazilian address for carts and address books. */
+export const testAddress = {
+	recipient: "Ana Souza",
+	cep: "01310-100",
+	street: "Av. Paulista",
+	number: "1000",
+	neighborhood: "Bela Vista",
+	city: "São Paulo",
+	state: "SP",
+};
+
+/**
+ * A cart ready to be placed: `quantity` units of the variant, a guest buyer
+ * and a shipping address. Answers its token.
+ */
+export async function readyCart(
+	cart: CartClient,
+	variantId: string,
+	{ quantity = 1, email = "ana@example.com" } = {},
+): Promise<string> {
+	const token = (await cart("POST", "/store/cart")).json<{ token: string }>()
+		.token;
+	const steps = [
+		cart("POST", "/store/cart/lines", {
+			token,
+			payload: { variantId, quantity },
+		}),
+		cart("PUT", "/store/cart/customer", {
+			token,
+			payload: { email, name: "Ana Souza" },
+		}),
+		cart("PUT", "/store/cart/shipping-address", {
+			token,
+			payload: testAddress,
+		}),
+	];
+	for (const step of steps) {
+		const response = await step;
+		if (response.statusCode >= 300) {
+			throw new Error(`Cart setup failed: ${response.body}`);
+		}
+	}
+	return token;
+}

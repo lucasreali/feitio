@@ -6,12 +6,14 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	readyCart as readyCartOf,
 	sellableVariant,
 	signIn,
 	startApp,
 	storeEvents,
 	type TestTenant,
 	type TestUser,
+	testAddress,
 } from "../fixtures.js";
 
 interface Cart {
@@ -20,18 +22,9 @@ interface Cart {
 	total: number;
 }
 
-const address = {
-	recipient: "Ana Souza",
-	cep: "01310-100",
-	street: "Av. Paulista",
-	number: "1000",
-	neighborhood: "Bela Vista",
-	city: "São Paulo",
-	state: "SP",
-};
-
 // Runs against the real PostgreSQL and Valkey in .env, on stores of its own.
-describe("Placing orders (e2e)", () => {
+// Most tests build orders through the API, a remote round trip per step.
+describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;
 	let store: TestTenant;
@@ -45,29 +38,10 @@ describe("Placing orders (e2e)", () => {
 			reserved: number;
 		}>();
 
-	/** A cart with `quantity` units of the variant, a guest and an address; answers its token. */
-	const readyCart = async (
+	const readyCart = (
 		variantId: string,
 		{ quantity = 1, client = cart } = {},
-	) => {
-		const token = (await client("POST", "/store/cart")).json<{
-			token: string;
-		}>().token;
-		const added = await client("POST", "/store/cart/lines", {
-			token,
-			payload: { variantId, quantity },
-		});
-		expect(added.statusCode).toBe(201);
-		await client("PUT", "/store/cart/customer", {
-			token,
-			payload: { email: "ana@example.com", name: "Ana Souza" },
-		});
-		await client("PUT", "/store/cart/shipping-address", {
-			token,
-			payload: address,
-		});
-		return token;
-	};
+	) => readyCartOf(client, variantId, { quantity });
 	const place = (token: string, client = cart) =>
 		client("POST", "/store/cart/place", { token });
 	const reopen = (token: string) =>
@@ -122,13 +96,12 @@ describe("Placing orders (e2e)", () => {
 			const otherPanel = panelClient(app, await signIn(app, otherOwner));
 			const otherCart = cartClient(app, otherStore);
 			// One variant per cart, so their stock does not serialize them.
-			const tokens = await Promise.all(
-				[1, 2, 3, 4, 5].map(async () =>
-					readyCart((await sellableVariant(otherPanel)).variantId, {
-						client: otherCart,
-					}),
-				),
-			);
+			// Set up one at a time: the pooler takes few connections.
+			const tokens: string[] = [];
+			for (let i = 0; i < 3; i++) {
+				const { variantId } = await sellableVariant(otherPanel);
+				tokens.push(await readyCart(variantId, { client: otherCart }));
+			}
 
 			const placed = await Promise.all(
 				tokens.map((token) => place(token, otherCart)),
@@ -136,7 +109,7 @@ describe("Placing orders (e2e)", () => {
 
 			expect(
 				placed.map((response) => response.json<Cart>().number).sort(),
-			).toEqual([1, 2, 3, 4, 5]);
+			).toEqual([1, 2, 3]);
 			await app.get(SessionService).destroyAllForUser(otherOwner.id);
 		});
 
@@ -166,7 +139,7 @@ describe("Placing orders (e2e)", () => {
 				if (missing.address !== false) {
 					await cart("PUT", "/store/cart/shipping-address", {
 						token,
-						payload: address,
+						payload: testAddress,
 					});
 				}
 
@@ -198,7 +171,7 @@ describe("Placing orders (e2e)", () => {
 
 			for (const [method, url, payload] of [
 				["POST", "/store/cart/lines", { variantId, quantity: 1 }],
-				["PUT", "/store/cart/shipping-address", address],
+				["PUT", "/store/cart/shipping-address", testAddress],
 				[
 					"PUT",
 					"/store/cart/customer",

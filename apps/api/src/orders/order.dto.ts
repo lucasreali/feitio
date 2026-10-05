@@ -1,3 +1,4 @@
+import type { OrderEventKind } from "../database/schemas/order-events.js";
 import type { OrderState } from "./order-state.js";
 
 export class OrderLineDto {
@@ -99,4 +100,95 @@ export class AddLineDto {
 export class LineQuantityDto {
 	/** 1 to 999. */
 	quantity: number;
+}
+
+export class OrderCustomerRefDto {
+	id: string;
+	name: string;
+	email: string;
+}
+
+/** An order in the panel's list. Amounts in cents. */
+export class OrderSummaryDto {
+	id: string;
+	number: number | null;
+	state: OrderState;
+	/** null for a cart without a buyer, or after the customer was erased. */
+	customer: OrderCustomerRefDto | null;
+	total: number;
+	placedAt: Date | null;
+	createdAt: Date;
+}
+
+export class OrderPageDto {
+	items: OrderSummaryDto[];
+	page: number;
+	pageSize: number;
+	/** Orders in every page. */
+	total: number;
+}
+
+export class OrderCustomerDto extends OrderCustomerRefDto {
+	/** E.164, such as +5511987654321. */
+	phone: string | null;
+	/** CPF (11 digits) or CNPJ (14 characters). */
+	taxId: string | null;
+}
+
+/** An order as the panel shows it. Amounts in cents. */
+export class OrderDto {
+	id: string;
+	number: number | null;
+	state: OrderState;
+	customer: OrderCustomerDto | null;
+	shippingAddress: OrderAddressDto | null;
+	billingAddress: OrderAddressDto | null;
+	/** In the order they were added. */
+	lines: OrderLineDto[];
+	subtotal: number;
+	discount: number;
+	shipping: number;
+	total: number;
+	/** When the buyer first placed it. */
+	placedAt: Date | null;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export class OrderTransitionDto {
+	/**
+	 * The new state. The staff takes an order awaiting payment to `paid`, a
+	 * paid one to `preparing`, then `shipped` and `delivered`; and cancels it
+	 * (`cancelled`) before it ships.
+	 */
+	state: OrderState;
+}
+
+export class OrderHistoryUserDto {
+	id: string;
+	name: string;
+}
+
+export class OrderEventDto {
+	id: string;
+	/** `transition` or `note`. */
+	kind: OrderEventKind;
+	/** `from` and `to` of a transition, or the `note`. */
+	data: Record<string, unknown>;
+	/** The panel user who did it; null when the buyer or the system did. */
+	user: OrderHistoryUserDto | null;
+	createdAt: Date;
+}
+
+export class OrderEventPageDto {
+	items: OrderEventDto[];
+	page: number;
+	pageSize: number;
+	/** Entries in every page. */
+	total: number;
+}
+
+export class OrderNoteDto {
+	/** 1 to 2000 characters, for the staff only. */
+	note: string;
 }
