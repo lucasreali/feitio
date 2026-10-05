@@ -254,7 +254,7 @@ describe("Admin panel sign-in (e2e)", () => {
 
 			expect((await right(ana, from)).statusCode).toBe(429);
 			expect((await right(ana, randomIp())).statusCode).toBe(200);
-		});
+		}, 30_000); // 30 password checks.
 
 		it("counts IPv6 addresses by their /64 network", async () => {
 			const network = randomIpv6Network();
@@ -271,7 +271,7 @@ describe("Admin panel sign-in (e2e)", () => {
 			expect(
 				(await right(ana, `${randomIpv6Network()}::1`)).statusCode,
 			).toBe(200);
-		});
+		}, 30_000); // 30 password checks.
 	});
 
 	describe("GET /auth/me", () => {
