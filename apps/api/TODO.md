@@ -100,7 +100,7 @@ Equivale a Customer, Address e CustomerGroup.
 
 Equivale ao EventBus e ao JobQueue. Vem antes de pedido e pagamento porque os dois dependem disso.
 
-- [x] Eventos de domínio publicados pelos módulos (produto criado e estoque alterado; pedido pago entra com a Fase 6)
+- [x] Eventos de domínio publicados pelos módulos (produto criado, estoque alterado e mudança de estado do pedido, que inclui o pedido pago)
 - [x] Filas no Valkey com BullMQ: tentativas, espera crescente e fila de falhas
 - [x] Processo de worker separado da API
 - [x] Idempotência: a mesma tarefa executada duas vezes não duplica efeito
@@ -110,17 +110,17 @@ Equivale ao EventBus e ao JobQueue. Vem antes de pedido e pagamento porque os do
 
 Equivale a Order, OrderLine e à máquina de estados do pedido. No Vendure, o carrinho é o próprio pedido em estado inicial.
 
-- [ ] Pedido ativo (carrinho), identificado por um token guardado pela loja
-- [ ] Adicionar, alterar quantidade e remover itens, com o preço sempre calculado pela API
-- [ ] Totais: subtotal, descontos, frete e total, em centavos
-- [ ] Máquina de estados: montando, aguardando pagamento, pago, em separação, enviado, entregue e cancelado
-- [ ] Transições validadas, com registro de quem fez e quando
-- [ ] Reserva de estoque na passagem para pagamento e baixa na confirmação
-- [ ] Vínculo do pedido com cliente e endereços
-- [ ] Número de pedido legível, sequencial por loja
-- [ ] Histórico e observações internas do pedido
-- [ ] Expiração de carrinhos abandonados e liberação do estoque reservado
-- [ ] Rotas de painel: listar, filtrar, detalhar, cancelar e alterar estado
+- [x] Pedido ativo (carrinho), identificado por um token guardado pela loja
+- [x] Adicionar, alterar quantidade e remover itens, com o preço sempre calculado pela API
+- [x] Totais: subtotal, descontos, frete e total, em centavos
+- [x] Máquina de estados: montando, aguardando pagamento, pago, em separação, enviado, entregue e cancelado
+- [x] Transições validadas, com registro de quem fez e quando
+- [x] Reserva de estoque na passagem para pagamento e baixa na confirmação
+- [x] Vínculo do pedido com cliente e endereços
+- [x] Número de pedido legível, sequencial por loja
+- [x] Histórico e observações internas do pedido
+- [x] Expiração de carrinhos abandonados e liberação do estoque reservado
+- [x] Rotas de painel: listar, filtrar, detalhar, cancelar e alterar estado
 
 ## Fase 7: Frete
 
