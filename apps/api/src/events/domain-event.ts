@@ -16,6 +16,8 @@ export type DomainEvent =
 			orderId: OrderId;
 			from: OrderState;
 			to: OrderState;
-	  };
+	  }
+	/** The gateway notified a change to a charge (its id at the gateway). */
+	| { type: "payment.notified"; gatewayId: string };
 
 export type DomainEventType = DomainEvent["type"];

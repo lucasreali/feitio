@@ -4,6 +4,7 @@ import { TenancyModule } from "../tenancy/tenancy.module.js";
 import { ASAAS_API, type AsaasApi, AsaasGateway } from "./adapters/asaas.js";
 import { PaymentAccounts } from "./payment-accounts.js";
 import { PAYMENT_GATEWAY } from "./payment-gateway.js";
+import { PaymentNotifications } from "./payment-notifications.js";
 import { PAYMENT_SETTINGS, type PaymentSettings } from "./payment-settings.js";
 import { SecretBox } from "./secret-box.js";
 
@@ -53,11 +54,13 @@ const asaasEnv = ["ASAAS_URL", "ASAAS_API_KEY", "ASAAS_WALLET_ID"] as const;
 			},
 		},
 		PaymentAccounts,
+		PaymentNotifications,
 	],
 	exports: [
 		PAYMENT_GATEWAY,
 		PAYMENT_SETTINGS,
 		PaymentAccounts,
+		PaymentNotifications,
 	],
 })
 export class PaymentGatewayModule {}

@@ -12,15 +12,19 @@ import {
 	queueConnection,
 } from "./events/queue.js";
 import { OrderExpiry } from "./orders/order-expiry.js";
+import { PaymentGatewayModule } from "./payments/payment-gateway.module.js";
+import { PaymentNotifications } from "./payments/payment-notifications.js";
+import { PaymentReconciliation } from "./payments/payment-reconciliation.js";
 import { TenancyModule } from "./tenancy/tenancy.module.js";
 
 /**
  * The worker process (`src/worker.ts`): relays domain events to the queue,
- * runs their jobs and expires unpaid orders and abandoned carts, apart from
- * the API's requests.
+ * runs their jobs (payments the gateway notified, among them), checks
+ * pending payments with the gateway and expires unpaid orders and abandoned
+ * carts, apart from the API's requests.
  */
 @Module({
-	imports: [DatabaseModule, TenancyModule],
+	imports: [DatabaseModule, PaymentGatewayModule, TenancyModule],
 	providers: [
 		{ provide: QUEUE_OPTIONS, useFactory: queueConnection },
 		{
@@ -33,10 +37,15 @@ import { TenancyModule } from "./tenancy/tenancy.module.js";
 			inject: [QUEUE_OPTIONS],
 		},
 		// Modules add their handlers here as they arrive (notifications, search).
-		{ provide: EVENT_HANDLERS, useValue: [] },
+		{
+			provide: EVENT_HANDLERS,
+			useFactory: (payments: PaymentNotifications) => [payments],
+			inject: [PaymentNotifications],
+		},
 		EventRelay,
 		EventJobs,
 		OrderExpiry,
+		PaymentReconciliation,
 	],
 })
 export class WorkerModule implements OnApplicationShutdown {

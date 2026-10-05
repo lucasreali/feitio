@@ -6,9 +6,10 @@ import {
 	type OnApplicationBootstrap,
 	type OnApplicationShutdown,
 } from "@nestjs/common";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { DATABASE, type Database } from "../database/database.js";
 import { orders } from "../database/schemas/orders.js";
+import { payments } from "../database/schemas/payments.js";
 import { tenants } from "../database/schemas/tenants.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import { TenantDatabase } from "../tenancy/tenant-database.js";
@@ -20,12 +21,19 @@ const HOUR = 60 * 60 * 1000;
 
 /**
  * An order awaiting payment this long after its last change is cancelled,
- * and its reserved stock goes back on sale.
- *
- * ponytail: one deadline for every payment method; the payment phase will
- * need longer ones (a boleto clears in up to 3 business days).
+ * and its reserved stock goes back on sale, unless a payment of it is still
+ * under way (see CLEARING_DAYS).
  */
 const UNPAID_FOR = 24 * HOUR;
+
+/**
+ * Days after its due date that a pending payment still holds its order: a
+ * boleto paid on the last day takes up to 3 business days to clear.
+ *
+ * ponytail: calendar days, counted in the database's time zone; business
+ * days if a long weekend ever cancels a paid boleto's order.
+ */
+const CLEARING_DAYS = 5;
 
 /** A cart untouched this long is removed. It holds no stock. */
 const CART_IDLE_FOR = 30 * 24 * HOUR;
@@ -80,6 +88,7 @@ export class OrderExpiry
 		const unpaid = and(
 			eq(orders.state, "awaiting_payment"),
 			lt(orders.updatedAt, new Date(now.getTime() - UNPAID_FOR)),
+			sql`not exists (select 1 from ${payments} where ${payments.orderId} = ${orders.id} and ${payments.status} = 'pending' and ${payments.dueDate} >= current_date - ${CLEARING_DAYS}::int)`,
 		);
 		const stale = await this.tenantDb.run((tx) =>
 			tx.select({ id: orders.id }).from(orders).where(unpaid),

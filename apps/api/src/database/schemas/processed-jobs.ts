@@ -12,7 +12,8 @@ import { tenants } from "./tenants.js";
 /**
  * Jobs the worker has run, written in the transaction of the job's own
  * writes: a job that runs again (a retry, a stalled job) finds its key and
- * changes nothing.
+ * changes nothing. Webhooks received keep their keys here too
+ * (`asaas-webhook.<id>`), so one delivered twice is queued once.
  */
 export const processedJobs = pgTable(
 	"processed_jobs",
@@ -21,7 +22,7 @@ export const processedJobs = pgTable(
 			.$type<TenantId>()
 			.notNull()
 			.references(() => tenants.id, { onDelete: "cascade" }),
-		/** The job's idempotency key: event id and handler name. */
+		/** The idempotency key: event id and handler name, or a webhook's id. */
 		key: text("key").notNull(),
 		processedAt: timestamp("processed_at", { withTimezone: true })
 			.notNull()
