@@ -19,7 +19,12 @@ import {
 	TenantDatabase,
 	type TenantTransaction,
 } from "../../src/tenancy/tenant-database.js";
-import { Fixtures, startApp, type TestTenant } from "../fixtures.js";
+import {
+	Fixtures,
+	startApp,
+	storeEvents,
+	type TestTenant,
+} from "../fixtures.js";
 
 // Runs against the real PostgreSQL in .env.
 describe("Stock ledger (e2e)", () => {
@@ -187,6 +192,31 @@ describe("Stock ledger (e2e)", () => {
 		await move("reservation", [line(id, 2)]);
 
 		expect(await level(id)).toEqual({ available: -2, reserved: 2 });
+	});
+
+	it("publishes one stock.changed event with the lines that moved", async () => {
+		const [tracked, untracked] = await Promise.all([
+			stocked(5),
+			variant({ trackStock: false }),
+		]);
+		const before = (await storeEvents(app, store)).length;
+
+		await move("reservation", [line(untracked, 1), line(tracked, 2)]);
+		await move("sale", [line(untracked, 1)]);
+		await expect(move("reservation", [line(tracked, 9)])).rejects.toThrow(
+			ConflictException,
+		);
+
+		expect((await storeEvents(app, store)).slice(before)).toEqual([
+			{
+				type: "stock.changed",
+				payload: {
+					kind: "reservation",
+					lines: [{ variantId: tracked, quantity: 2 }],
+				},
+				dispatchedAt: null,
+			},
+		]);
 	});
 
 	it("moves nothing for an order of a variant that does not track stock", async () => {

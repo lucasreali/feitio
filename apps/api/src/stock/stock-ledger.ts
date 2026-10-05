@@ -8,6 +8,7 @@ import {
 	stockMovements,
 } from "../database/schemas/stock-movements.js";
 import type { ProductVariantId, StockLocationId } from "../domain/ids.js";
+import { publishEvent } from "../events/publish-event.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import type { TenantTransaction } from "../tenancy/tenant-database.js";
 
@@ -59,7 +60,8 @@ async function defaultLocation(
  * a reservation of a variant that allows backorders) or `reserved` below zero
  * is refused with 409, and the transaction should roll back. Order movements
  * of variants that do not track stock change nothing; adjustments always
- * apply. 404 for a variant the store does not have.
+ * apply. 404 for a variant the store does not have. Publishes one
+ * `stock.changed` event with the lines that moved, if any did.
  */
 export async function moveStock(
 	tx: TenantTransaction,
@@ -88,6 +90,7 @@ export async function moveStock(
 	const sorted = [...lines].sort((a, b) =>
 		a.variantId < b.variantId ? -1 : a.variantId > b.variantId ? 1 : 0,
 	);
+	const moved: StockLine[] = [];
 	for (const { variantId, quantity } of sorted) {
 		const variant = policy.get(variantId);
 		if (!variant) {
@@ -130,5 +133,9 @@ export async function moveStock(
 		await tx
 			.insert(stockMovements)
 			.values({ tenantId, locationId, variantId, kind, quantity });
+		moved.push({ variantId, quantity });
+	}
+	if (moved.length > 0) {
+		await publishEvent(tx, { type: "stock.changed", kind, lines: moved });
 	}
 }

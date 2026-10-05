@@ -10,6 +10,7 @@ import {
 	panelClient,
 	signIn,
 	startApp,
+	storeEvents,
 	type TestTenant,
 	type TestUser,
 } from "../fixtures.js";
@@ -197,6 +198,16 @@ describe("Product panel routes (e2e)", () => {
 			expect((await panel.post("/admin/products", body)).statusCode).toBe(
 				400,
 			);
+		});
+
+		it("publishes product.created with the new product", async () => {
+			const product = await create(panel);
+
+			expect((await storeEvents(app, store)).at(-1)).toEqual({
+				type: "product.created",
+				payload: { productId: product.id },
+				dispatchedAt: null,
+			});
 		});
 	});
 

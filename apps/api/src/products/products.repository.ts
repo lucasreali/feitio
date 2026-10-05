@@ -18,6 +18,7 @@ import { productVariants } from "../database/schemas/product-variants.js";
 import { products } from "../database/schemas/products.js";
 import type { ProductId } from "../domain/ids.js";
 import type { Slug } from "../domain/slug.js";
+import { publishEvent } from "../events/publish-event.js";
 import { FileStorage } from "../storage/file-storage.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
@@ -102,6 +103,10 @@ export class ProductsRepository {
 						productId: product.id,
 						...input.variant,
 						position: 0,
+					});
+					await publishEvent(tx, {
+						type: "product.created",
+						productId: product.id,
 					});
 					return product.id;
 				}),

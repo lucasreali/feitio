@@ -3,16 +3,20 @@ import {
 	type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
+import { asc } from "drizzle-orm";
 import pg from "pg";
 import { AppModule } from "../src/app.module.js";
 import { configureApp } from "../src/app.setup.js";
 import { hashPassword } from "../src/auth/password.js";
+import { domainEvents } from "../src/database/schemas/domain-events.js";
 import type { MembershipRole } from "../src/database/schemas/memberships.js";
 import { Cpf } from "../src/domain/cpf.js";
 import { Email } from "../src/domain/email.js";
 import { TenantId, UserId } from "../src/domain/ids.js";
 import { TenantSlug } from "../src/domain/tenant-slug.js";
 import { readSessionConfig } from "../src/session/session.config.js";
+import { TenantContext } from "../src/tenancy/tenant-context.js";
+import { TenantDatabase } from "../src/tenancy/tenant-database.js";
 
 /** A random valid CPF: nine random digits plus their check digits. */
 export function randomCpf(): Cpf {
@@ -212,4 +216,20 @@ export function storeClient(app: NestFastifyApplication, tenant: TestTenant) {
 			url,
 			headers: { "x-tenant": tenant.slug },
 		});
+}
+
+/** The tenant's domain events, oldest first. */
+export function storeEvents(app: NestFastifyApplication, tenant: TestTenant) {
+	return TenantContext.run(tenant, () =>
+		app.get(TenantDatabase).run((tx) =>
+			tx
+				.select({
+					type: domainEvents.type,
+					payload: domainEvents.payload,
+					dispatchedAt: domainEvents.dispatchedAt,
+				})
+				.from(domainEvents)
+				.orderBy(asc(domainEvents.id)),
+		),
+	);
 }
