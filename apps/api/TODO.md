@@ -88,13 +88,13 @@ Equivale a StockLocation, StockLevel e StockMovement.
 
 Equivale a Customer, Address e CustomerGroup.
 
-- [ ] Clientes da loja: nome, e-mail, telefone e CPF ou CNPJ, com tipos do domínio
-- [ ] Endereços, com CEP validado e endereço padrão de entrega e de cobrança
-- [ ] Cliente visitante (compra sem cadastro) e cliente cadastrado
-- [ ] Autenticação do comprador, separada da do painel, pensada para a loja em outro domínio
-- [ ] Grupos de clientes, para promoções e preços
-- [ ] Histórico do cliente
-- [ ] LGPD: exportar e apagar os dados de um cliente a pedido
+- [x] Clientes da loja: nome, e-mail, telefone e CPF ou CNPJ, com tipos do domínio
+- [x] Endereços, com CEP validado e endereço padrão de entrega e de cobrança
+- [x] Cliente visitante (compra sem cadastro) e cliente cadastrado
+- [x] Autenticação do comprador, separada da do painel, pensada para a loja em outro domínio
+- [x] Grupos de clientes, para promoções e preços
+- [x] Histórico do cliente
+- [x] LGPD: exportar e apagar os dados de um cliente a pedido
 
 ## Fase 5: Eventos e filas
 
@@ -168,6 +168,7 @@ Equivale ao EmailPlugin.
 - [ ] Modelos com o nome, o logo e as cores da loja
 - [ ] Envio sempre pela fila
 - [ ] Convite de usuário e recuperação de senha do painel
+- [ ] Verificação do e-mail e recuperação de senha do comprador; com o e-mail verificado, o cadastro passa a assumir o cliente visitante de mesmo e-mail (hoje responde 409)
 - [ ] Adaptador de WhatsApp, como módulo avulso
 
 ## Fase 11: Promoções
