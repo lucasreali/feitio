@@ -2,6 +2,7 @@ import { ConflictException } from "@nestjs/common";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { orders } from "../database/schemas/orders.js";
 import type { CustomerId } from "../domain/ids.js";
+import { orderPayments } from "../payments/payments.js";
 import type { TenantTransaction } from "../tenancy/tenant-database.js";
 import type { CustomerOrderDto } from "./order.dto.js";
 import { linesOf } from "./order-lines.js";
@@ -43,6 +44,7 @@ export async function customerOrders(
 		rows.map(async (order) => ({
 			...order,
 			lines: await linesOf(tx, order.id),
+			payments: await orderPayments(tx, order.id),
 		})),
 	);
 }

@@ -62,6 +62,13 @@ jobs:
       MELHOR_ENVIO_URL: https://sandbox.melhorenvio.com.br
       MELHOR_ENVIO_TOKEN: feitio-ci-token
       MELHOR_ENVIO_USER_AGENT: Feitio CI (ci@example.com)
+      # The e2e tests replace Asaas with a fake; nothing reaches it.
+      ASAAS_URL: https://api-sandbox.asaas.com
+      ASAAS_API_KEY: feitio-ci-key
+      ASAAS_WALLET_ID: feitio-ci-wallet
+      PAYMENT_FEE_PERCENT: "2.5"
+      PAYMENT_SECRET_KEY: ZmVpdGlvLWNpLXBheW1lbnQtc2VjcmV0LWtleS0zMmI=
+      PUBLIC_API_URL: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v7

@@ -201,6 +201,7 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 				expect.objectContaining({
 					state: "cart",
 					number: null,
+					payments: [],
 					shippingAddress: expect.objectContaining({
 						cep: "01310100",
 					}),
@@ -218,6 +219,7 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 					total: 4500,
 					trackingCode: null,
 					labelUrl: null,
+					payments: [],
 				}),
 			]);
 		});

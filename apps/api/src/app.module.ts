@@ -6,6 +6,7 @@ import { CustomersModule } from "./customers/customers.module.js";
 import { FacetsModule } from "./facets/facets.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
+import { PaymentsModule } from "./payments/payments.module.js";
 import { ProductsModule } from "./products/products.module.js";
 import { SessionModule } from "./session/session.module.js";
 import { ShippingModule } from "./shipping/shipping.module.js";
@@ -22,6 +23,7 @@ import { StoreSettingsModule } from "./store-settings/store-settings.module.js";
 		FacetsModule,
 		HealthModule,
 		OrdersModule,
+		PaymentsModule,
 		ProductsModule,
 		SessionModule,
 		ShippingModule,

@@ -1,8 +1,9 @@
 import { ConflictException } from "@nestjs/common";
-import { and, eq, isNotNull, max, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
 import { orderEvents } from "../database/schemas/order-events.js";
 import { orderLines } from "../database/schemas/order-lines.js";
 import { orders } from "../database/schemas/orders.js";
+import { payments } from "../database/schemas/payments.js";
 import type { OrderId, ProductVariantId, UserId } from "../domain/ids.js";
 import { publishEvent } from "../events/publish-event.js";
 import { moveStock } from "../stock/stock-ledger.js";
@@ -34,10 +35,26 @@ async function nextNumber(tx: TenantTransaction): Promise<number> {
 	return (last ?? 0) + 1;
 }
 
+/** Whether the order has a payment pending or confirmed. */
+async function paymentUnderWay(tx: TenantTransaction, id: OrderId) {
+	const [payment] = await tx
+		.select({ id: payments.id })
+		.from(payments)
+		.where(
+			and(
+				eq(payments.orderId, id),
+				inArray(payments.status, ["pending", "confirmed"]),
+			),
+		)
+		.limit(1);
+	return payment !== undefined;
+}
+
 /**
  * Moves an order to another state in the caller's transaction, for the
  * buyer, the staff or the system alike: checks the state machine (409 for a
- * transition it does not allow, or that the party may not make), moves the
+ * transition it does not allow, or that the party may not make, and for
+ * going back to the cart with a payment under way), moves the
  * stock of its lines (409 when there is not enough), numbers the order when
  * it is first placed, records the transition and publishes
  * `order.transitioned`. false when the store has no such order.
@@ -59,6 +76,12 @@ export async function transitionOrder(
 	const from = order.state;
 	if (!transitionAllowed(from, to, actor.party)) {
 		throw new ConflictException(`An order in ${from} cannot go to ${to}`);
+	}
+	if (to === "cart" && (await paymentUnderWay(tx, id))) {
+		// The buyer could pay the old total while changing the cart.
+		throw new ConflictException(
+			"The order has a payment under way or done; it cannot change",
+		);
 	}
 	const kind = stockMovementOf(from, to);
 	if (kind) {

@@ -1,4 +1,5 @@
 import type { OrderEventKind } from "../database/schemas/order-events.js";
+import { PaymentDto } from "../payments/payment.dto.js";
 import type { OrderState } from "./order-state.js";
 
 export class OrderLineDto {
@@ -245,6 +246,8 @@ export class CustomerOrderDto {
 	trackingCode: string | null;
 	/** Where the store printed the shipping label, with the address. */
 	labelUrl: string | null;
+	/** Its payments, newest first. */
+	payments: PaymentDto[];
 	placedAt: Date | null;
 	createdAt: Date;
 }
