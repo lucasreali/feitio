@@ -2,6 +2,8 @@ import {
 	type ShippingKind,
 	shippingKind,
 } from "../database/schemas/shipping-methods.js";
+import { Cep } from "../domain/cep.js";
+import { ProductVariantId } from "../domain/ids.js";
 import { Money } from "../domain/money.js";
 import {
 	invalid,
@@ -9,6 +11,7 @@ import {
 	objectBody,
 	requiredText,
 } from "../http/request-body.js";
+import { MAX_QUANTITY } from "../orders/cart-input.js";
 import type { ShippingCalculator } from "./shipping-calculator.js";
 
 /** The calculator of each kind of method. */
@@ -116,4 +119,32 @@ export function parseShippingMethodChanges(
 		changes.config = fields.config;
 	}
 	return changes;
+}
+
+export interface Simulation {
+	variantId: ProductVariantId;
+	cep: Cep;
+	quantity: number;
+}
+
+/** Query of GET /store/shipping-options: a product page's simulation. */
+export function parseSimulation(query: Record<string, unknown>): Simulation {
+	const text = (field: string) =>
+		typeof query[field] === "string" ? (query[field] as string) : "";
+	const quantity =
+		query.quantity === undefined ? 1 : Number(text("quantity"));
+	return {
+		variantId:
+			ProductVariantId.tryParse(text("variantId")) ??
+			invalid("variantId must be a variant id"),
+		cep: Cep.tryParse(text("cep")) ?? invalid("cep must have 8 digits"),
+		quantity:
+			Number.isInteger(quantity) &&
+			quantity >= 1 &&
+			quantity <= MAX_QUANTITY
+				? quantity
+				: invalid(
+						`quantity must be a whole number from 1 to ${MAX_QUANTITY}`,
+					),
+	};
 }

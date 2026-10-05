@@ -5,6 +5,7 @@ import type { ShippingCalculator } from "./shipping-calculator.js";
 import {
 	parseNewShippingMethod,
 	parseShippingMethodChanges,
+	parseSimulation,
 } from "./shipping-input.js";
 
 const calculators = {
@@ -81,4 +82,31 @@ describe("parseShippingMethodChanges", () => {
 			);
 		},
 	);
+});
+
+describe("parseSimulation", () => {
+	const variantId = "0199d5a4-0000-7000-8000-000000000000";
+
+	it("reads the variant, the CEP and the units, one by default", () => {
+		expect(parseSimulation({ variantId, cep: "20040-020" })).toEqual({
+			variantId,
+			cep: "20040020",
+			quantity: 1,
+		});
+		expect(
+			parseSimulation({ variantId, cep: "20040020", quantity: "3" }),
+		).toMatchObject({ quantity: 3 });
+	});
+
+	it.each([
+		{ cep: "20040020" },
+		{ variantId: "x", cep: "20040020" },
+		{ variantId },
+		{ variantId, cep: "123" },
+		{ variantId, cep: "20040020", quantity: "0" },
+		{ variantId, cep: "20040020", quantity: "1.5" },
+		{ variantId, cep: "20040020", quantity: "1000" },
+	])("refuses %j", (query) => {
+		expect(() => parseSimulation(query)).toThrow(BadRequestException);
+	});
 });

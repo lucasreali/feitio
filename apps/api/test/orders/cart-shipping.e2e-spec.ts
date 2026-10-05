@@ -53,8 +53,8 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 	let methods: Record<"fixed" | "sedex" | "pickup" | "disabled", string>;
 
 	const requests: QuoteRequest[] = [];
-	/** What the fake Melhor Envio answers next; Sedex (service 2) for R$ 23,70 in 4 days by default. */
-	let carrierAnswer = () =>
+	/** Sedex (service 2) for R$ 23,70 in 4 days. */
+	const sedexAnswer = () =>
 		new Response(
 			JSON.stringify({
 				id: 2,
@@ -63,6 +63,8 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 				custom_delivery_time: 4,
 			}),
 		);
+	/** What the fake Melhor Envio answers next. */
+	let carrierAnswer = sedexAnswer;
 
 	const method = async (body: Record<string, unknown>) => {
 		const response = await panel.post("/admin/shipping-methods", body);
@@ -238,14 +240,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 					(await options(token)).json<Option[]>().map((o) => o.id),
 				).toEqual([methods.pickup, methods.fixed]);
 			} finally {
-				carrierAnswer = () =>
-					new Response(
-						JSON.stringify({
-							id: 2,
-							custom_price: "23.70",
-							custom_delivery_time: 4,
-						}),
-					);
+				carrierAnswer = sedexAnswer;
 			}
 		});
 
@@ -312,14 +307,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 					502,
 				);
 			} finally {
-				carrierAnswer = () =>
-					new Response(
-						JSON.stringify({
-							id: 2,
-							custom_price: "23.70",
-							custom_delivery_time: 4,
-						}),
-					);
+				carrierAnswer = sedexAnswer;
 			}
 			expect(
 				(await cart("GET", "/store/cart", { token })).json<Cart>()
@@ -396,6 +384,100 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 				state: "awaiting_payment",
 				shipping: 0,
 				shippingMethod: { id: methods.pickup },
+			});
+		});
+
+		it("quotes the chosen method again, and the order keeps that price", async () => {
+			const token = await cartWith(await variant({ price: 5000 }));
+			await buyer(token);
+			await choose(token, methods.sedex);
+			carrierAnswer = () =>
+				new Response(
+					JSON.stringify({
+						id: 2,
+						custom_price: "30.00",
+						custom_delivery_time: 5,
+					}),
+				);
+			try {
+				const response = await cart("POST", "/store/cart/place", {
+					token,
+				});
+
+				expect(response.statusCode).toBe(200);
+				expect(response.json<Cart>()).toMatchObject({
+					state: "awaiting_payment",
+					subtotal: 5000,
+					shipping: 3000,
+					total: 8000,
+					shippingMethod: { id: methods.sedex, deliveryDays: 5 },
+				});
+			} finally {
+				carrierAnswer = sedexAnswer;
+			}
+		});
+
+		it("prices shipping for the cart as it is placed, with the catalog's prices then", async () => {
+			const variantId = await variant({ price: 19000 });
+			const token = await cartWith(variantId);
+			await buyer(token);
+			expect(
+				(await choose(token, methods.fixed)).json<Cart>().shipping,
+			).toBe(1500);
+			await panel.patch(`/admin/variants/${variantId}`, { price: 21000 });
+
+			const response = await cart("POST", "/store/cart/place", { token });
+
+			expect(response.json<Cart>()).toMatchObject({
+				subtotal: 21000,
+				shipping: 0,
+				total: 21000,
+			});
+		});
+
+		it("answers 409 and drops the method when the store no longer offers it", async () => {
+			const disabled = await method({
+				name: `Some ${crypto.randomUUID().slice(0, 8)}`,
+				kind: "fixed",
+				config: { price: 900 },
+			});
+			const token = await cartWith(await variant());
+			await buyer(token);
+			await choose(token, disabled);
+			await panel.patch(`/admin/shipping-methods/${disabled}`, {
+				enabled: false,
+			});
+
+			const response = await cart("POST", "/store/cart/place", { token });
+
+			expect(response.statusCode).toBe(409);
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<Cart>(),
+			).toMatchObject({
+				state: "cart",
+				shippingMethod: null,
+				shipping: 0,
+			});
+		});
+
+		it("answers 502 and stays a cart when the carrier fails", async () => {
+			const token = await cartWith(await variant());
+			await buyer(token);
+			await choose(token, methods.sedex);
+			carrierAnswer = () => new Response("{}", { status: 503 });
+			try {
+				const response = await cart("POST", "/store/cart/place", {
+					token,
+				});
+				expect(response.statusCode).toBe(502);
+			} finally {
+				carrierAnswer = sedexAnswer;
+			}
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<Cart>(),
+			).toMatchObject({
+				state: "cart",
+				shippingMethod: { id: methods.sedex },
 			});
 		});
 

@@ -15,6 +15,7 @@ import type {
 	OrderId,
 	OrderLineId,
 	ProductVariantId,
+	ShippingMethodId,
 } from "../domain/ids.js";
 import { invalid } from "../http/request-body.js";
 import type { Parcel } from "../shipping/shipping-calculator.js";
@@ -48,6 +49,7 @@ async function lockOrder(tx: TenantTransaction, tokenHash: string) {
 			state: orders.state,
 			customerId: orders.customerId,
 			shippingAddress: orders.shippingAddress,
+			shippingMethodId: orders.shippingMethodId,
 			shippingKind: shippingMethods.kind,
 		})
 		.from(orders)
@@ -193,6 +195,49 @@ async function parcelOf(
 	};
 }
 
+/** A method priced for a parcel, as the quote for it. */
+interface Quoted {
+	parcel: Parcel;
+	choice: ShippingChoice;
+}
+
+/**
+ * 409 unless the cart still ships what was quoted, with the same method:
+ * the cart changed meanwhile and the buyer tries again.
+ */
+async function ensureQuoted(
+	tx: TenantTransaction,
+	id: OrderId,
+	methodId: string | null,
+	quoted: Quoted | null,
+) {
+	const parcel = quoted && (await parcelOf(tx, id, undefined));
+	if (
+		methodId !== (quoted?.choice.methodId ?? null) ||
+		JSON.stringify(parcel) !== JSON.stringify(quoted?.parcel ?? null)
+	) {
+		throw new ConflictException("The cart changed meanwhile; try again");
+	}
+}
+
+/** Keeps the quoted method and prices it into the order's total. */
+async function applyShipping(
+	tx: TenantTransaction,
+	id: OrderId,
+	choice: ShippingChoice,
+) {
+	await tx
+		.update(orders)
+		.set({
+			shippingMethodId: choice.methodId,
+			shippingMethodName: choice.name,
+			shippingDeliveryDays: choice.deliveryDays,
+			shipping: choice.price,
+			total: sql`${orders.subtotal} - ${orders.discount} + ${choice.price}`,
+		})
+		.where(eq(orders.id, id));
+}
+
 /** The order as the store shows it. */
 export async function cartView(
 	tx: TenantTransaction,
@@ -321,12 +366,43 @@ export class CartRepository {
 	}
 
 	/**
-	 * Places the order: brings it up to date with the catalog, then awaits
-	 * payment with its stock reserved. 409 for a cart without lines, buyer,
-	 * shipping method or shipping address (unless picked up at the store),
-	 * or without the stock.
+	 * Before placing: brings the cart up to date with the catalog and
+	 * answers what to ship and the chosen method, to price shipping for good.
+	 * null when the order is no longer a cart.
 	 */
-	place(tokenHash: string): Promise<CartDto | undefined> {
+	checkout(
+		tokenHash: string,
+	): Promise<
+		{ parcel: Parcel; methodId: ShippingMethodId | null } | null | undefined
+	> {
+		return this.tenantDb.run(async (tx) => {
+			const order = await lockOrder(tx, tokenHash);
+			if (!order) {
+				return undefined;
+			}
+			if (order.state !== "cart") {
+				return null;
+			}
+			await reprice(tx, order.id);
+			return {
+				parcel: await parcelOf(tx, order.id, undefined),
+				methodId: order.shippingMethodId,
+			};
+		});
+	}
+
+	/**
+	 * Places the order: brings it up to date with the catalog, prices its
+	 * shipping for good with `quoted` (the chosen method quoted for the cart
+	 * from checkout()), then awaits payment with its stock reserved. 409 for
+	 * a cart without lines, buyer, shipping method or shipping address
+	 * (unless picked up at the store), without the stock, or changed since
+	 * checkout().
+	 */
+	place(
+		tokenHash: string,
+		quoted: Quoted | null,
+	): Promise<CartDto | undefined> {
 		return this.tenantDb.run(async (tx) => {
 			const order = await lockOrder(tx, tokenHash);
 			if (!order) {
@@ -334,6 +410,15 @@ export class CartRepository {
 			}
 			if (order.state === "cart") {
 				await reprice(tx, order.id);
+				await ensureQuoted(
+					tx,
+					order.id,
+					order.shippingMethodId,
+					quoted,
+				);
+				if (quoted) {
+					await applyShipping(tx, order.id, quoted.choice);
+				}
 				const [line] = await tx
 					.select({ id: orderLines.id })
 					.from(orderLines)
@@ -452,17 +537,13 @@ export class CartRepository {
 					"The cart changed while quoting; quote again",
 				);
 			}
-			await tx
-				.update(orders)
-				.set({
-					shippingMethodId: choice.methodId,
-					shippingMethodName: choice.name,
-					shippingDeliveryDays: choice.deliveryDays,
-					shipping: choice.price,
-					total: sql`${orders.subtotal} - ${orders.discount} + ${choice.price}`,
-				})
-				.where(eq(orders.id, id));
+			await applyShipping(tx, id, choice);
 		});
+	}
+
+	/** Drops the chosen shipping, which can no longer ship the cart. */
+	dropShipping(tokenHash: string): Promise<CartDto | undefined> {
+		return this.changeCart(tokenHash, (tx, id) => clearShipping(tx, id));
 	}
 
 	/** null when the cart has no such line; 409 past the units in stock. */

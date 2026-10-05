@@ -1,15 +1,20 @@
 import { ConflictException, Inject, Injectable } from "@nestjs/common";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { translateConstraints } from "../database/pg-error.js";
+import { productVariants } from "../database/schemas/product-variants.js";
+import { products } from "../database/schemas/products.js";
 import { shippingMethods } from "../database/schemas/shipping-methods.js";
 import type { ShippingMethodId } from "../domain/ids.js";
+import { Money } from "../domain/money.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import { TenantDatabase } from "../tenancy/tenant-database.js";
 import type { ShippingMethodDto } from "./shipping.dto.js";
+import type { Parcel } from "./shipping-calculator.js";
 import type {
 	NewShippingMethod,
 	ShippingCalculators,
 	ShippingMethodChanges,
+	Simulation,
 } from "./shipping-input.js";
 
 export const SHIPPING_CALCULATORS = Symbol("SHIPPING_CALCULATORS");
@@ -50,6 +55,44 @@ export class ShippingMethodsRepository {
 						asc(shippingMethods.id),
 					) as Promise<ShippingMethodDto[]>,
 		);
+	}
+
+	/**
+	 * Units of a variant as a parcel, for a product page's simulation;
+	 * undefined when the store does not sell it (unknown, or of a product
+	 * that is not active).
+	 */
+	variantParcel({
+		variantId,
+		cep,
+		quantity,
+	}: Simulation): Promise<Parcel | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const [variant] = await tx
+				.select({
+					unitPrice: productVariants.price,
+					weight: productVariants.weight,
+					height: productVariants.height,
+					width: productVariants.width,
+					length: productVariants.length,
+				})
+				.from(productVariants)
+				.innerJoin(
+					products,
+					and(
+						eq(products.id, productVariants.productId),
+						eq(products.status, "active"),
+					),
+				)
+				.where(eq(productVariants.id, variantId));
+			return (
+				variant && {
+					destination: cep,
+					subtotal: Money.parse(variant.unitPrice * quantity),
+					items: [{ variantId, quantity, ...variant }],
+				}
+			);
+		});
 	}
 
 	/** The methods offered to buyers. */

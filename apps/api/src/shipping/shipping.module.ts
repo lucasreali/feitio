@@ -9,6 +9,7 @@ import {
 	MelhorEnvioShipping,
 } from "./adapters/melhor-envio.js";
 import { StorePickupShipping } from "./adapters/store-pickup.js";
+import { ShippingController } from "./shipping.controller.js";
 import type { ShippingCalculators } from "./shipping-input.js";
 import {
 	SHIPPING_CALCULATORS,
@@ -25,7 +26,7 @@ const melhorEnvioEnv = [
 
 @Module({
 	imports: [AuthModule, TenancyModule],
-	controllers: [ShippingMethodsAdminController],
+	controllers: [ShippingController, ShippingMethodsAdminController],
 	providers: [
 		{
 			provide: MELHOR_ENVIO_API,

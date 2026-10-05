@@ -1,6 +1,8 @@
 import {
 	applyDecorators,
+	BadRequestException,
 	Body,
+	ConflictException,
 	Controller,
 	Delete,
 	Get,
@@ -125,19 +127,46 @@ export class CartController {
 
 	/**
 	 * Places the order: it awaits payment, with its stock reserved and its
-	 * number given. Prices are taken from the catalog once more.
+	 * number given. Prices are taken from the catalog once more, and the
+	 * chosen shipping is quoted again for the cart as it is now: that price
+	 * is final, whatever the buyer saw before.
 	 */
 	@Post("place")
 	@HttpCode(200)
 	@CartScoped()
 	@ApiConflictResponse({
 		description:
-			"The cart has no lines, buyer or shipping address; there is not enough stock; or it is no longer a cart.",
+			"The cart has no lines, buyer, shipping method or shipping address; the chosen method can no longer ship it (it is dropped: choose another); there is not enough stock; the cart changed meanwhile; or it is no longer a cart.",
 	})
+	@ApiBadGatewayResponse({ description: "The carrier did not answer." })
 	async place(
 		@Headers("x-cart-token") token: string | undefined,
 	): Promise<CartDto> {
-		return found(await this.carts.place(tokenHash(token)));
+		const hash = tokenHash(token);
+		const checkout = await this.carts.checkout(hash);
+		if (checkout === undefined) {
+			throw new NotFoundException();
+		}
+		if (!checkout?.methodId) {
+			return found(await this.carts.place(hash, null));
+		}
+		const { parcel, methodId } = checkout;
+		const choice = await this.quotes
+			.quote(methodId, parcel)
+			.catch(async (error: unknown) => {
+				// Not offered anymore (400) or cannot ship the cart (409).
+				if (
+					error instanceof BadRequestException ||
+					error instanceof ConflictException
+				) {
+					await this.carts.dropShipping(hash);
+					throw new ConflictException(
+						"The shipping method can no longer ship the cart; choose another",
+					);
+				}
+				throw error;
+			});
+		return found(await this.carts.place(hash, { parcel, choice }));
 	}
 
 	/** Takes an order awaiting payment back to the cart, to change it; the stock is released. */
