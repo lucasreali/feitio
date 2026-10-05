@@ -169,6 +169,20 @@
       "when": 1791157983560,
       "tag": "0023_customer_events_clock",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791204309256,
+      "tag": "0024_create_domain_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791204310027,
+      "tag": "0025_domain_events_access",
+      "breakpoints": true
     }
   ]
 }

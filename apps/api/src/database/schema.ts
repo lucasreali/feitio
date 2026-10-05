@@ -7,9 +7,11 @@ import { customerEvents } from "./schemas/customer-events.js";
 import { customerGroupMembers } from "./schemas/customer-group-members.js";
 import { customerGroups } from "./schemas/customer-groups.js";
 import { customers } from "./schemas/customers.js";
+import { domainEvents } from "./schemas/domain-events.js";
 import { facetValues } from "./schemas/facet-values.js";
 import { facets } from "./schemas/facets.js";
 import { memberships } from "./schemas/memberships.js";
+import { processedJobs } from "./schemas/processed-jobs.js";
 import { productFacetValues } from "./schemas/product-facet-values.js";
 import { productImages } from "./schemas/product-images.js";
 import { productOptionGroups } from "./schemas/product-option-groups.js";
@@ -51,4 +53,6 @@ export const schemas = {
 	customerGroups,
 	customerGroupMembers,
 	customerEvents,
+	domainEvents,
+	processedJobs,
 };

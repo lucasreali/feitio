@@ -81,3 +81,7 @@ export const CustomerGroupId = entityId("CustomerGroupId");
 /** Id of an entry of a customer's history. */
 export type CustomerEventId = Brand<string, "CustomerEventId">;
 export const CustomerEventId = entityId("CustomerEventId");
+
+/** Id of a domain event: something that happened in a store, for the worker. */
+export type DomainEventId = Brand<string, "DomainEventId">;
+export const DomainEventId = entityId("DomainEventId");
