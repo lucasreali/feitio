@@ -21,7 +21,7 @@ Not created yet: the root `dev` and `fix` scripts.
 ## Commands (from the root)
 
 - `pnpm build`: every project's build.
-- `pnpm dev:api`, `pnpm dev:admin`, `pnpm dev:checkout`, `pnpm dev:storefront`: one project in development.
+- `pnpm dev:api`, `pnpm dev:admin`, `pnpm dev:checkout`, `pnpm dev:storefront`: one project in development. `pnpm dev:worker` runs the API's worker process (events and queues).
 - `pnpm check`: `biome check --write` (formats and applies safe lint fixes).
 - `pnpm test`: every project's unit and UI tests. The API integration and e2e suite is separate: `pnpm --filter api test:e2e`.
 - `pnpm services:up` / `pnpm services:down`: local Valkey (Docker).

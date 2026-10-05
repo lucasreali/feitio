@@ -100,11 +100,11 @@ Equivale a Customer, Address e CustomerGroup.
 
 Equivale ao EventBus e ao JobQueue. Vem antes de pedido e pagamento porque os dois dependem disso.
 
-- [ ] Eventos de domínio publicados pelos módulos (produto criado, pedido pago, estoque alterado)
-- [ ] Filas no Valkey com BullMQ: tentativas, espera crescente e fila de falhas
-- [ ] Processo de worker separado da API
-- [ ] Idempotência: a mesma tarefa executada duas vezes não duplica efeito
-- [ ] Contexto do tenant preservado dentro das tarefas
+- [x] Eventos de domínio publicados pelos módulos (produto criado e estoque alterado; pedido pago entra com a Fase 6)
+- [x] Filas no Valkey com BullMQ: tentativas, espera crescente e fila de falhas
+- [x] Processo de worker separado da API
+- [x] Idempotência: a mesma tarefa executada duas vezes não duplica efeito
+- [x] Contexto do tenant preservado dentro das tarefas
 
 ## Fase 6: Carrinho e pedido
 
