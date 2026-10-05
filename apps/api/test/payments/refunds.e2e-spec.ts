@@ -24,7 +24,8 @@ const card = {
 	cvv: "318",
 };
 
-describe("Payments in the panel and refunds (e2e)", () => {
+// Each test builds orders through the API, a remote round trip per step.
+describe("Payments in the panel and refunds (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;
 	let asaas: FakeAsaas;

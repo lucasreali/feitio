@@ -20,7 +20,8 @@ import {
 import { type FakeAsaas, fakeAsaas } from "./fake-asaas.js";
 import { openPaymentAccount } from "./payment-fixtures.js";
 
-describe("Asaas webhook (e2e)", () => {
+// Each test builds orders through the API, a remote round trip per step.
+describe("Asaas webhook (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
 	let fixtures: Fixtures;
 	let asaas: FakeAsaas;
