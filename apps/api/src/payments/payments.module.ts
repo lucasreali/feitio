@@ -6,6 +6,7 @@ import { AsaasWebhookController } from "./asaas-webhook.controller.js";
 import { PaymentAccountController } from "./payment-account.controller.js";
 import { PaymentGatewayModule } from "./payment-gateway.module.js";
 import { Payments } from "./payments.js";
+import { PaymentsAdminController } from "./payments-admin.controller.js";
 import { StorePaymentController } from "./store-payment.controller.js";
 
 @Module({
@@ -13,6 +14,7 @@ import { StorePaymentController } from "./store-payment.controller.js";
 	controllers: [
 		AsaasWebhookController,
 		PaymentAccountController,
+		PaymentsAdminController,
 		StorePaymentController,
 	],
 	providers: [Payments],
