@@ -256,3 +256,64 @@ export function testWorker(handlers: EventHandler[]) {
 		.useValue(handlers)
 		.compile();
 }
+
+/** JSON requests to a store's cart routes, with the cart's token when given. */
+export function cartClient(app: NestFastifyApplication, tenant: TestTenant) {
+	return (
+		method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+		url: string,
+		{
+			token,
+			payload,
+			headers,
+		}: {
+			token?: string;
+			payload?: unknown;
+			headers?: Record<string, string>;
+		} = {},
+	) =>
+		app.inject({
+			method,
+			url,
+			payload: payload as object | undefined,
+			headers: {
+				"x-tenant": tenant.slug,
+				...(token ? { "x-cart-token": token } : {}),
+				...headers,
+			},
+		});
+}
+
+export type CartClient = ReturnType<typeof cartClient>;
+
+/**
+ * An active product with one variant, through the panel; answers the
+ * variant's id. `stock` units are added unless it is 0.
+ */
+export async function sellableVariant(
+	panel: PanelClient,
+	{
+		price = 4990,
+		stock = 10,
+		status = "active",
+		name = "Camiseta",
+	}: { price?: number; stock?: number; status?: string; name?: string } = {},
+): Promise<{ productId: string; variantId: string; sku: string }> {
+	const sku = `SKU-${crypto.randomUUID().slice(0, 8)}`;
+	const created = await panel.post("/admin/products", {
+		name,
+		variant: { sku, price },
+	});
+	if (created.statusCode !== 201) {
+		throw new Error(`Product creation failed: ${created.body}`);
+	}
+	const product = created.json<{ id: string; variants: { id: string }[] }>();
+	await panel.patch(`/admin/products/${product.id}`, { status });
+	const variantId = product.variants[0].id;
+	if (stock !== 0) {
+		await panel.post(`/admin/variants/${variantId}/stock/adjustments`, {
+			quantity: stock,
+		});
+	}
+	return { productId: product.id, variantId, sku };
+}
