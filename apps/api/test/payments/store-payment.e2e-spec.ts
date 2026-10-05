@@ -1,6 +1,7 @@
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { payments } from "../../src/database/schemas/payments.js";
 import { ASAAS_API } from "../../src/payments/adapters/asaas.js";
+import { PAYMENT_SETTINGS } from "../../src/payments/payment-settings.js";
 import { TenantContext } from "../../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../../src/tenancy/tenant-database.js";
 import {
@@ -53,8 +54,16 @@ describe("Store payment (e2e)", () => {
 
 	beforeAll(async () => {
 		asaas = fakeAsaas();
+		// A fee of its own, whatever .env says, so the split is always sent.
 		app = await startApp((b) =>
-			b.overrideProvider(ASAAS_API).useValue(asaas.api),
+			b
+				.overrideProvider(ASAAS_API)
+				.useValue(asaas.api)
+				.overrideProvider(PAYMENT_SETTINGS)
+				.useValue({
+					feePercent: 2.5,
+					publicApiUrl: process.env.PUBLIC_API_URL,
+				}),
 		);
 		fixtures = await Fixtures.open();
 		tenant = await fixtures.tenant();
@@ -119,7 +128,7 @@ describe("Store payment (e2e)", () => {
 			split: [
 				{
 					walletId: "feitio-wallet",
-					percentualValue: Number(process.env.PAYMENT_FEE_PERCENT),
+					percentualValue: 2.5,
 				},
 			],
 		});
