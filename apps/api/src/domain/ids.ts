@@ -85,3 +85,15 @@ export const CustomerEventId = entityId("CustomerEventId");
 /** Id of a domain event: something that happened in a store, for the worker. */
 export type DomainEventId = Brand<string, "DomainEventId">;
 export const DomainEventId = entityId("DomainEventId");
+
+/** Id of an order; a cart is an order that has not been placed. */
+export type OrderId = Brand<string, "OrderId">;
+export const OrderId = entityId("OrderId");
+
+/** Id of a line of an order: one variant and its quantity. */
+export type OrderLineId = Brand<string, "OrderLineId">;
+export const OrderLineId = entityId("OrderLineId");
+
+/** Id of an entry of an order's history. */
+export type OrderEventId = Brand<string, "OrderEventId">;
+export const OrderEventId = entityId("OrderEventId");

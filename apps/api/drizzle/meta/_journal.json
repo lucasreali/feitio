@@ -183,6 +183,20 @@
       "when": 1791204310027,
       "tag": "0025_domain_events_access",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791207898684,
+      "tag": "0026_create_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1791207899263,
+      "tag": "0027_orders_access",
+      "breakpoints": true
     }
   ]
 }

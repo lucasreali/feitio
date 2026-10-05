@@ -11,6 +11,9 @@ import { domainEvents } from "./schemas/domain-events.js";
 import { facetValues } from "./schemas/facet-values.js";
 import { facets } from "./schemas/facets.js";
 import { memberships } from "./schemas/memberships.js";
+import { orderEvents } from "./schemas/order-events.js";
+import { orderLines } from "./schemas/order-lines.js";
+import { orders } from "./schemas/orders.js";
 import { processedJobs } from "./schemas/processed-jobs.js";
 import { productFacetValues } from "./schemas/product-facet-values.js";
 import { productImages } from "./schemas/product-images.js";
@@ -55,4 +58,7 @@ export const schemas = {
 	customerEvents,
 	domainEvents,
 	processedJobs,
+	orders,
+	orderLines,
+	orderEvents,
 };
