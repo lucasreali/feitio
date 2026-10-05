@@ -139,15 +139,15 @@ Equivale a ShippingMethod, com verificação de elegibilidade e cálculo, e a Fu
 
 Equivale a PaymentMethod, Payment e Refund.
 
-- [ ] Interface de gateway de pagamento
-- [ ] Adaptador do Asaas: Pix, cartão e boleto
-- [ ] Subconta do lojista no Asaas, criada pela API
-- [ ] Divisão do pagamento, com a parte da Feitio
-- [ ] Cartão tokenizado pelo gateway, sem dados de cartão no nosso banco nem em log
-- [ ] Webhook do Asaas: validação de origem, idempotência e processamento em fila
-- [ ] Pagamento ligado ao pedido, com situação e histórico
-- [ ] Reembolso total e parcial
-- [ ] Conciliação: tarefa que confere pagamentos pendentes com o gateway
+- [x] Interface de gateway de pagamento
+- [x] Adaptador do Asaas: Pix, cartão e boleto
+- [x] Subconta do lojista no Asaas, criada pela API
+- [x] Divisão do pagamento, com a parte da Feitio
+- [x] Cartão tokenizado pelo gateway, sem dados de cartão no nosso banco nem em log
+- [x] Webhook do Asaas: validação de origem, idempotência e processamento em fila
+- [x] Pagamento ligado ao pedido, com situação e histórico
+- [x] Reembolso total e parcial
+- [x] Conciliação: tarefa que confere pagamentos pendentes com o gateway
 
 ## Fase 9: Checkout
 
