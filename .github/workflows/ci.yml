@@ -16,7 +16,8 @@ permissions:
 jobs:
   checks:
     name: Checks
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moves to Ubuntu 26 from October 19, 2026.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     # Supabase stands in for PostgreSQL and S3 everywhere else; CI uses local
