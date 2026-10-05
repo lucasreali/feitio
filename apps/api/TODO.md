@@ -126,14 +126,14 @@ Equivale a Order, OrderLine e à máquina de estados do pedido. No Vendure, o ca
 
 Equivale a ShippingMethod, com verificação de elegibilidade e cálculo, e a Fulfillment.
 
-- [ ] Peso e dimensões por variante
-- [ ] Métodos de frete por loja: nome, situação e regra de cálculo
-- [ ] Interface de cálculo de frete, com adaptadores
-- [ ] Adaptador: preço fixo e frete grátis acima de um valor
-- [ ] Adaptador: agregador de transportadoras (Melhor Envio)
-- [ ] Cotação por CEP no carrinho
-- [ ] Envio (fulfillment): código de rastreio, etiqueta e situação
-- [ ] Retirada na loja como método
+- [x] Peso e dimensões por variante
+- [x] Métodos de frete por loja: nome, situação e regra de cálculo
+- [x] Interface de cálculo de frete, com adaptadores
+- [x] Adaptador: preço fixo e frete grátis acima de um valor
+- [x] Adaptador: agregador de transportadoras (Melhor Envio)
+- [x] Cotação por CEP no carrinho
+- [x] Envio (fulfillment): código de rastreio, etiqueta e situação
+- [x] Retirada na loja como método
 
 ## Fase 8: Pagamento
 
