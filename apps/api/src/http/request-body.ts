@@ -110,3 +110,49 @@ export function pathId<T>(
 export function nameBody(body: unknown, max: number): string {
 	return requiredText(objectBody(body, ["name"]).name, "name", max);
 }
+
+/** A value of a domain type, or a 400 naming the field. */
+export const domain =
+	<T>(type: { tryParse(value: string): T | null }, field: string) =>
+	(value: unknown): T =>
+		(typeof value === "string" && type.tryParse(value)) ||
+		invalid(`${field} is invalid`);
+
+/** null, or a value of a domain type. */
+export const optionalDomain =
+	<T>(type: { tryParse(value: string): T | null }, field: string) =>
+	(value: unknown): T | null =>
+		value === null ? null : domain(type, field)(value);
+
+export type Parsers = Record<string, (value: unknown) => unknown>;
+export type Parsed<P extends Parsers> = { [K in keyof P]: ReturnType<P[K]> };
+
+/** The fields sent, each parsed; at least one, and no unknown field. */
+export function changes<P extends Parsers>(
+	body: unknown,
+	parsers: P,
+): Partial<Parsed<P>> {
+	const fields = objectBody(body, Object.keys(parsers));
+	return Object.fromEntries(
+		Object.entries(fields).map(([field, value]) => [
+			field,
+			parsers[field](value),
+		]),
+	) as Partial<Parsed<P>>;
+}
+
+/** Every field parsed: missing ones are refused, or take their default. */
+export function complete<P extends Parsers>(
+	body: unknown,
+	parsers: P,
+	defaults: Partial<Parsed<P>>,
+): Parsed<P> {
+	const sent = changes(body, parsers);
+	const missing = Object.keys(parsers).filter(
+		(field) => !(field in sent) && !(field in defaults),
+	);
+	if (missing.length > 0) {
+		invalid(`Missing fields: ${missing.join(", ")}`);
+	}
+	return { ...defaults, ...sent } as Parsed<P>;
+}

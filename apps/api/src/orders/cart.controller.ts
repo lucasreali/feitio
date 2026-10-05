@@ -1,5 +1,4 @@
 import {
-	applyDecorators,
 	BadRequestException,
 	Body,
 	ConflictException,
@@ -22,8 +21,6 @@ import {
 	ApiBadRequestResponse,
 	ApiBearerAuth,
 	ApiConflictResponse,
-	ApiHeader,
-	ApiNotFoundResponse,
 	ApiQuery,
 	ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
@@ -40,7 +37,7 @@ import { ShippingQuotes } from "../shipping/shipping-quotes.js";
 import { TenantScoped } from "../tenancy/tenant-scoped.decorator.js";
 import { CartRepository } from "./cart.repository.js";
 import { parseLineQuantity, parseNewLine } from "./cart-input.js";
-import { cartTokenHash } from "./cart-token.js";
+import { CartScoped, tokenHash } from "./cart-scoped.decorator.js";
 import {
 	AddLineDto,
 	CartDto,
@@ -50,25 +47,6 @@ import {
 	SetOrderAddressDto,
 	SetShippingMethodDto,
 } from "./order.dto.js";
-
-/** Marks a route of the cart behind the X-Cart-Token header. */
-const CartScoped = () =>
-	applyDecorators(
-		TenantScoped(),
-		ApiHeader({
-			name: "X-Cart-Token",
-			required: true,
-			description: "The token answered when the cart was created.",
-		}),
-		ApiNotFoundResponse({ description: "No cart for this token." }),
-	);
-
-/** The hash behind the request's token; 404 without one. */
-const tokenHash = (token: string | undefined) =>
-	cartTokenHash(token) ??
-	(() => {
-		throw new NotFoundException();
-	})();
 
 /** 404 when the store has no such cart (undefined) or line (null). */
 const found = (cart: CartDto | null | undefined): CartDto => {
