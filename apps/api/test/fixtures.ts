@@ -14,9 +14,15 @@ import { Cpf } from "../src/domain/cpf.js";
 import { Email } from "../src/domain/email.js";
 import { TenantId, UserId } from "../src/domain/ids.js";
 import { TenantSlug } from "../src/domain/tenant-slug.js";
+import {
+	EVENT_HANDLERS,
+	type EventHandler,
+} from "../src/events/event-handler.js";
+import { QUEUE_OPTIONS, queueConnection } from "../src/events/queue.js";
 import { readSessionConfig } from "../src/session/session.config.js";
 import { TenantContext } from "../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../src/tenancy/tenant-database.js";
+import { WorkerModule } from "../src/worker.module.js";
 
 /** A random valid CPF: nine random digits plus their check digits. */
 export function randomCpf(): Cpf {
@@ -232,4 +238,21 @@ export function storeEvents(app: NestFastifyApplication, tenant: TestTenant) {
 				.orderBy(asc(domainEvents.id)),
 		),
 	);
+}
+
+/**
+ * The worker module with the given handlers, on queue keys of its own so no
+ * other worker takes its jobs. Not started: call init() to run the relay and
+ * the worker.
+ */
+export function testWorker(handlers: EventHandler[]) {
+	return Test.createTestingModule({ imports: [WorkerModule] })
+		.overrideProvider(QUEUE_OPTIONS)
+		.useValue({
+			...queueConnection(),
+			prefix: `test-${crypto.randomUUID()}`,
+		})
+		.overrideProvider(EVENT_HANDLERS)
+		.useValue(handlers)
+		.compile();
 }

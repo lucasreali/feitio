@@ -5,6 +5,7 @@
 	"main": "index.js",
 	"scripts": {
 		"dev:api": "pnpm --filter api start:dev",
+		"dev:worker": "pnpm --filter api start:worker:dev",
 		"dev:admin": "pnpm --filter admin dev",
 		"dev:checkout": "pnpm --filter checkout dev",
 		"dev:storefront": "pnpm --filter storefront-starter dev",

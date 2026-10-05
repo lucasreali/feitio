@@ -1,36 +1,18 @@
-import { Test, type TestingModule } from "@nestjs/testing";
+import type { TestingModule } from "@nestjs/testing";
 import { Queue } from "bullmq";
 import { asc, isNull } from "drizzle-orm";
 import { domainEvents } from "../../src/database/schemas/domain-events.js";
 import { ProductId, ProductVariantId } from "../../src/domain/ids.js";
 import type { DomainEvent } from "../../src/events/domain-event.js";
-import {
-	EVENT_HANDLERS,
-	type EventHandler,
-	type EventJob,
-} from "../../src/events/event-handler.js";
+import type { EventHandler, EventJob } from "../../src/events/event-handler.js";
 import { EventRelay } from "../../src/events/event-relay.js";
 import { publishEvent } from "../../src/events/publish-event.js";
-import { QUEUE_OPTIONS, queueConnection } from "../../src/events/queue.js";
 import { TenantContext } from "../../src/tenancy/tenant-context.js";
 import {
 	TenantDatabase,
 	type TenantTransaction,
 } from "../../src/tenancy/tenant-database.js";
-import { WorkerModule } from "../../src/worker.module.js";
-import { Fixtures, type TestTenant } from "../fixtures.js";
-
-/** A worker module on its own queue keys, so no other worker takes its jobs. */
-const testWorker = (handlers: EventHandler[]) =>
-	Test.createTestingModule({ imports: [WorkerModule] })
-		.overrideProvider(QUEUE_OPTIONS)
-		.useValue({
-			...queueConnection(),
-			prefix: `test-${crypto.randomUUID()}`,
-		})
-		.overrideProvider(EVENT_HANDLERS)
-		.useValue(handlers)
-		.compile();
+import { Fixtures, type TestTenant, testWorker } from "../fixtures.js";
 
 const handler = (name: string, events: EventHandler["events"]) => ({
 	name,
