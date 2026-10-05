@@ -10,6 +10,8 @@
 		"outDir": "./dist",
 		"rootDir": ".",
 		"incremental": true,
+		// scripts/ run straight from .ts with Node, so they import each other as .ts.
+		"rewriteRelativeImportExtensions": true,
 		"paths": {
 			"@/*": ["./src/*"]
 		},
