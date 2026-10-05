@@ -13,7 +13,7 @@ import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
 import { hashPassword } from "../auth/password.js";
-import { requireEnv } from "../config/env.js";
+import { readConfig } from "../config/config.js";
 import type { TenantId } from "../domain/ids.js";
 import {
 	type CreateStoreInput,
@@ -120,10 +120,9 @@ async function main() {
 		process.loadEnvFile();
 	}
 	const input = parseCreateStoreArgs(process.argv.slice(2));
-	const owner = new pg.Client({
-		connectionString: requireEnv("MIGRATION_DATABASE_URL"),
-	});
-	const app = new pg.Client({ connectionString: requireEnv("DATABASE_URL") });
+	const config = readConfig(process.env, ["database", "migrations"]);
+	const owner = new pg.Client({ connectionString: config.migrations.url });
+	const app = new pg.Client({ connectionString: config.database.url });
 	await Promise.all([owner.connect(), app.connect()]);
 	try {
 		const { tenantId, password } = await createStore(input, { owner, app });

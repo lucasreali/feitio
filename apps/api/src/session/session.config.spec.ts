@@ -77,7 +77,7 @@ describe("readSessionConfig", () => {
 
 	it("fails without COOKIE_SECRET", () => {
 		setEnv({});
-		expect(() => readSessionConfig()).toThrow("COOKIE_SECRET is not set.");
+		expect(() => readSessionConfig()).toThrow("COOKIE_SECRET is missing.");
 	});
 
 	it("fails with a COOKIE_SECRET shorter than 32 characters", () => {

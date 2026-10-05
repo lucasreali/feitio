@@ -1,5 +1,5 @@
 import type { DefaultJobOptions, QueueOptions } from "bullmq";
-import { requireEnv } from "../config/env.js";
+import { configOf } from "../config/config.js";
 
 /** The BullMQ queue of event jobs: one job per event and handler. */
 export const EVENTS_QUEUE = "events";
@@ -14,7 +14,7 @@ export type QueueConnection = Pick<QueueOptions, "connection" | "prefix">;
  * forever (`maxRetriesPerRequest: null`), so never pass the shared `Valkey`.
  */
 export const queueConnection = (): QueueConnection => ({
-	connection: { url: requireEnv("VALKEY_URL"), maxRetriesPerRequest: null },
+	connection: { url: configOf("valkey").url, maxRetriesPerRequest: null },
 });
 
 /**

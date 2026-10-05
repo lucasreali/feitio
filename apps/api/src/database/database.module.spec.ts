@@ -14,7 +14,7 @@ describe("DatabaseModule", () => {
 
 	it("fails at startup without DATABASE_URL", async () => {
 		delete process.env.DATABASE_URL;
-		await expect(compile()).rejects.toThrow("DATABASE_URL is not set.");
+		await expect(compile()).rejects.toThrow("DATABASE_URL is missing.");
 	});
 
 	it("reports an unreachable database as down", async () => {

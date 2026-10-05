@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { requireEnv } from "../config/env.js";
+import { configOf } from "../config/config.js";
 import { DATABASE, type Database } from "./database.js";
 import { DatabaseHealth } from "./database-health.js";
 import { schemas } from "./schema.js";
@@ -19,7 +19,7 @@ const logger = new Logger("Database");
 			provide: DATABASE,
 			useFactory: (): Database => {
 				const pool = new Pool({
-					connectionString: requireEnv("DATABASE_URL"),
+					connectionString: configOf("database").url,
 					connectionTimeoutMillis: 5_000,
 				});
 				// The database (or the pooler) can drop an idle connection at any

@@ -1,4 +1,4 @@
-import { configError, requireEnv } from "../config/env.js";
+import { configOf } from "../config/config.js";
 
 export const SESSION_CONFIG = Symbol("SESSION_CONFIG");
 
@@ -14,34 +14,5 @@ export interface SessionConfig {
 	secure: boolean;
 }
 
-const DEFAULT_COOKIE_NAME = "feitio_session";
-const DEFAULT_TTL_SECONDS = 7 * 24 * 60 * 60;
-const MIN_SECRET_LENGTH = 32;
-
-/** Reads and validates the session settings from the environment. */
-export function readSessionConfig(): SessionConfig {
-	const env = process.env;
-	const cookieSecret = requireEnv("COOKIE_SECRET");
-	if (cookieSecret.length < MIN_SECRET_LENGTH) {
-		configError(
-			`COOKIE_SECRET must have at least ${MIN_SECRET_LENGTH} characters.`,
-		);
-	}
-
-	const ttlSeconds = env.SESSION_TTL_SECONDS
-		? Number(env.SESSION_TTL_SECONDS)
-		: DEFAULT_TTL_SECONDS;
-	if (!Number.isInteger(ttlSeconds) || ttlSeconds <= 0) {
-		configError(
-			"SESSION_TTL_SECONDS must be a positive whole number of seconds.",
-		);
-	}
-
-	return {
-		cookieSecret,
-		cookieName: env.SESSION_COOKIE_NAME || DEFAULT_COOKIE_NAME,
-		cookieDomain: env.SESSION_COOKIE_DOMAIN || undefined,
-		ttlSeconds,
-		secure: env.NODE_ENV === "production",
-	};
-}
+/** The session settings, validated (see `src/config/config.ts`). */
+export const readSessionConfig = (): SessionConfig => configOf("session");

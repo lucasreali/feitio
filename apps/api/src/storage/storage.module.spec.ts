@@ -38,7 +38,11 @@ describe("StorageModule", () => {
 		await expect(
 			compileWith({ ...partial, STORAGE_ACCESS_KEY_ID: "" }),
 		).rejects.toThrow(
-			"Missing storage environment variables: STORAGE_REGION, STORAGE_ACCESS_KEY_ID, STORAGE_PUBLIC_URL.",
+			[
+				"- STORAGE_REGION is missing.",
+				"- STORAGE_ACCESS_KEY_ID is missing.",
+				"- STORAGE_PUBLIC_URL is missing.",
+			].join("\n"),
 		);
 	});
 });

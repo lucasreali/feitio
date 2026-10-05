@@ -22,7 +22,12 @@ import {
 	type EventHandler,
 } from "../src/events/event-handler.js";
 import { QUEUE_OPTIONS, queueConnection } from "../src/events/queue.js";
+import { ASAAS_API, type AsaasApi } from "../src/payments/adapters/asaas.js";
 import { readSessionConfig } from "../src/session/session.config.js";
+import {
+	MELHOR_ENVIO_API,
+	type MelhorEnvioApi,
+} from "../src/shipping/adapters/melhor-envio.js";
 import { TenantContext } from "../src/tenancy/tenant-context.js";
 import { TenantDatabase } from "../src/tenancy/tenant-database.js";
 import { WorkerModule } from "../src/worker.module.js";
@@ -216,6 +221,27 @@ function testDatabase(): Database {
 }
 
 /**
+ * Vendors no test reaches, so the suite needs no real keys in .env.test. Tests
+ * of payments and shipping pass their own fakes, which replace these.
+ */
+const unreachable = (vendor: string) => () =>
+	Promise.reject(new Error(`${vendor} is not reachable here; pass a fake`));
+
+const unreachableMelhorEnvio: MelhorEnvioApi = {
+	url: "https://melhorenvio.invalid",
+	token: "test",
+	userAgent: "Feitio tests",
+	fetch: unreachable("Melhor Envio"),
+};
+
+const unreachableAsaas: AsaasApi = {
+	url: "https://asaas.invalid",
+	apiKey: "test",
+	walletId: "test",
+	fetch: unreachable("Asaas"),
+};
+
+/**
  * The whole API, configured like main.ts, ready for app.inject(). `override`
  * replaces more providers, such as a carrier's API.
  */
@@ -226,7 +252,11 @@ export async function startApp(
 	const moduleRef = await override(
 		Test.createTestingModule({ imports: [AppModule] })
 			.overrideProvider(DATABASE)
-			.useFactory({ factory: testDatabase }),
+			.useFactory({ factory: testDatabase })
+			.overrideProvider(ASAAS_API)
+			.useValue(unreachableAsaas)
+			.overrideProvider(MELHOR_ENVIO_API)
+			.useValue(unreachableMelhorEnvio),
 	).compile();
 	const app = moduleRef.createNestApplication<NestFastifyApplication>(
 		new FastifyAdapter(),
@@ -302,6 +332,8 @@ export function testWorker(handlers: EventHandler[]) {
 		})
 		.overrideProvider(EVENT_HANDLERS)
 		.useValue(handlers)
+		.overrideProvider(ASAAS_API)
+		.useValue(unreachableAsaas)
 		.compile();
 }
 

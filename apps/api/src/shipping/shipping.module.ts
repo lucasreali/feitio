@@ -1,6 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthModule } from "../auth/auth.module.js";
-import { configError, missingEnv } from "../config/env.js";
+import { configOf } from "../config/config.js";
 import { TenancyModule } from "../tenancy/tenancy.module.js";
 import { FixedRateShipping } from "./adapters/fixed-rate.js";
 import {
@@ -18,30 +18,16 @@ import {
 import { ShippingMethodsAdminController } from "./shipping-methods-admin.controller.js";
 import { ShippingQuotes } from "./shipping-quotes.js";
 
-const melhorEnvioEnv = [
-	"MELHOR_ENVIO_URL",
-	"MELHOR_ENVIO_TOKEN",
-	"MELHOR_ENVIO_USER_AGENT",
-] as const;
-
 @Module({
 	imports: [AuthModule, TenancyModule],
 	controllers: [ShippingController, ShippingMethodsAdminController],
 	providers: [
 		{
 			provide: MELHOR_ENVIO_API,
-			useFactory: (): MelhorEnvioApi => {
-				const missing = missingEnv(melhorEnvioEnv);
-				if (missing.length > 0) {
-					configError(
-						`Missing Melhor Envio environment variables: ${missing.join(", ")}.`,
-					);
-				}
-				const [url, token, userAgent] = melhorEnvioEnv.map(
-					(name) => process.env[name] as string,
-				);
-				return { url, token, userAgent, fetch: globalThis.fetch };
-			},
+			useFactory: (): MelhorEnvioApi => ({
+				...configOf("melhorEnvio"),
+				fetch: globalThis.fetch,
+			}),
 		},
 		FixedRateShipping,
 		MelhorEnvioShipping,

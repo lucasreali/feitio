@@ -14,7 +14,7 @@ describe("ValkeyModule", () => {
 
 	it("fails at startup without VALKEY_URL", async () => {
 		delete process.env.VALKEY_URL;
-		await expect(compile()).rejects.toThrow("VALKEY_URL is not set.");
+		await expect(compile()).rejects.toThrow("VALKEY_URL is missing.");
 	});
 
 	it("reports an unreachable Valkey as down", async () => {

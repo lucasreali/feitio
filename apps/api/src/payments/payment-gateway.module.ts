@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { configError, missingEnv, requireEnv } from "../config/env.js";
+import { configOf } from "../config/config.js";
 import { TenancyModule } from "../tenancy/tenancy.module.js";
 import { ASAAS_API, type AsaasApi, AsaasGateway } from "./adapters/asaas.js";
 import { PaymentAccounts } from "./payment-accounts.js";
@@ -8,49 +8,30 @@ import { PaymentNotifications } from "./payment-notifications.js";
 import { PAYMENT_SETTINGS, type PaymentSettings } from "./payment-settings.js";
 import { SecretBox } from "./secret-box.js";
 
-const asaasEnv = ["ASAAS_URL", "ASAAS_API_KEY", "ASAAS_WALLET_ID"] as const;
-
 /**
  * The gateway and the stores' accounts in it, for the API and the worker
- * alike. Fails at startup without the gateway's or the payments' variables.
+ * alike, from the `asaas` and `payments` configuration.
  */
 @Module({
 	imports: [TenancyModule],
 	providers: [
 		{
 			provide: ASAAS_API,
-			useFactory: (): AsaasApi => {
-				const missing = missingEnv(asaasEnv);
-				if (missing.length > 0) {
-					configError(
-						`Missing Asaas environment variables: ${missing.join(", ")}.`,
-					);
-				}
-				const [url, apiKey, walletId] = asaasEnv.map(
-					(name) => process.env[name] as string,
-				);
-				return { url, apiKey, walletId, fetch: globalThis.fetch };
-			},
+			useFactory: (): AsaasApi => ({
+				...configOf("asaas"),
+				fetch: globalThis.fetch,
+			}),
 		},
 		{ provide: PAYMENT_GATEWAY, useClass: AsaasGateway },
 		{
 			provide: SecretBox,
-			useFactory: () => new SecretBox(requireEnv("PAYMENT_SECRET_KEY")),
+			useFactory: () => new SecretBox(configOf("payments").secretKey),
 		},
 		{
 			provide: PAYMENT_SETTINGS,
 			useFactory: (): PaymentSettings => {
-				const fee = Number(requireEnv("PAYMENT_FEE_PERCENT"));
-				if (!(fee >= 0 && fee < 100)) {
-					configError("PAYMENT_FEE_PERCENT must be 0 to 99.99.");
-				}
-				return {
-					feePercent: fee,
-					publicApiUrl: requireEnv("PUBLIC_API_URL").replace(
-						/\/$/,
-						"",
-					),
-				};
+				const { feePercent, publicApiUrl } = configOf("payments");
+				return { feePercent, publicApiUrl };
 			},
 		},
 		PaymentAccounts,
