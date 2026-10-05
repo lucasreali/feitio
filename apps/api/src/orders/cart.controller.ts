@@ -5,6 +5,7 @@ import {
 	Delete,
 	Get,
 	Headers,
+	HttpCode,
 	NotFoundException,
 	Param,
 	Patch,
@@ -112,6 +113,34 @@ export class CartController {
 		const hash = tokenHash(token);
 		const { variantId, quantity } = parseNewLine(body);
 		return found(await this.carts.addLine(hash, variantId, quantity));
+	}
+
+	/**
+	 * Places the order: it awaits payment, with its stock reserved and its
+	 * number given. Prices are taken from the catalog once more.
+	 */
+	@Post("place")
+	@HttpCode(200)
+	@CartScoped()
+	@ApiConflictResponse({
+		description:
+			"The cart has no lines, buyer or shipping address; there is not enough stock; or it is no longer a cart.",
+	})
+	async place(
+		@Headers("x-cart-token") token: string | undefined,
+	): Promise<CartDto> {
+		return found(await this.carts.place(tokenHash(token)));
+	}
+
+	/** Takes an order awaiting payment back to the cart, to change it; the stock is released. */
+	@Post("reopen")
+	@HttpCode(200)
+	@CartScoped()
+	@ApiConflictResponse({ description: "The order is not awaiting payment." })
+	async reopen(
+		@Headers("x-cart-token") token: string | undefined,
+	): Promise<CartDto> {
+		return found(await this.carts.reopen(tokenHash(token)));
 	}
 
 	/**

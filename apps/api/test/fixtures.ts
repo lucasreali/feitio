@@ -302,6 +302,7 @@ export async function sellableVariant(
 	const sku = `SKU-${crypto.randomUUID().slice(0, 8)}`;
 	const created = await panel.post("/admin/products", {
 		name,
+		slug: sku.toLowerCase(),
 		variant: { sku, price },
 	});
 	if (created.statusCode !== 201) {

@@ -23,6 +23,7 @@ import {
 import { MAX_QUANTITY } from "./cart-input.js";
 import { newCartToken } from "./cart-token.js";
 import type { CartDto } from "./order.dto.js";
+import { transitionOrder } from "./order-transitions.js";
 
 /** Variants the store sells: of active products. */
 const sellable = and(
@@ -32,18 +33,29 @@ const sellable = and(
 
 /**
  * Locks the order behind a token for the rest of the transaction, so
- * concurrent changes to one cart run one at a time. undefined when the store
- * has no such order; 409 when it is no longer a cart.
+ * concurrent changes to one order run one at a time. undefined when the
+ * store has no such order.
  */
+async function lockOrder(tx: TenantTransaction, tokenHash: string) {
+	const [order] = await tx
+		.select({
+			id: orders.id,
+			state: orders.state,
+			customerId: orders.customerId,
+			shippingAddress: orders.shippingAddress,
+		})
+		.from(orders)
+		.where(eq(orders.tokenHash, tokenHash))
+		.for("update");
+	return order;
+}
+
+/** lockOrder, and 409 when the order is no longer a cart. */
 async function lockCart(
 	tx: TenantTransaction,
 	tokenHash: string,
 ): Promise<OrderId | undefined> {
-	const [order] = await tx
-		.select({ id: orders.id, state: orders.state })
-		.from(orders)
-		.where(eq(orders.tokenHash, tokenHash))
-		.for("update");
+	const order = await lockOrder(tx, tokenHash);
 	if (order && order.state !== "cart") {
 		throw new ConflictException(
 			"The order has been placed; only a cart can change",
@@ -247,6 +259,54 @@ export class CartRepository {
 				});
 			await reprice(tx, id);
 			return cartView(tx, id);
+		});
+	}
+
+	/**
+	 * Places the order: brings it up to date with the catalog, then awaits
+	 * payment with its stock reserved. 409 for a cart without lines, buyer or
+	 * shipping address, or without the stock.
+	 */
+	place(tokenHash: string): Promise<CartDto | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const order = await lockOrder(tx, tokenHash);
+			if (!order) {
+				return undefined;
+			}
+			if (order.state === "cart") {
+				await reprice(tx, order.id);
+				const [line] = await tx
+					.select({ id: orderLines.id })
+					.from(orderLines)
+					.where(eq(orderLines.orderId, order.id))
+					.limit(1);
+				const missing = [
+					!line && "lines",
+					!order.customerId && "a customer",
+					!order.shippingAddress && "a shipping address",
+				].filter(Boolean);
+				if (missing.length > 0) {
+					throw new ConflictException(
+						`The cart needs ${missing.join(", ")}`,
+					);
+				}
+			}
+			await transitionOrder(tx, order.id, "awaiting_payment", {
+				party: "buyer",
+			});
+			return cartView(tx, order.id);
+		});
+	}
+
+	/** Takes an order awaiting payment back to the cart, releasing its stock; it keeps its number. */
+	reopen(tokenHash: string): Promise<CartDto | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const order = await lockOrder(tx, tokenHash);
+			if (!order) {
+				return undefined;
+			}
+			await transitionOrder(tx, order.id, "cart", { party: "buyer" });
+			return cartView(tx, order.id);
 		});
 	}
 
