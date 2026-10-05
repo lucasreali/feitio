@@ -1,11 +1,19 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { and, asc, eq, sql } from "drizzle-orm";
+import type { Guest } from "../customers/customer-input.js";
+import { guestCustomer } from "../customers/customers.repository.js";
+import { customers } from "../database/schemas/customers.js";
 import { orderLines } from "../database/schemas/order-lines.js";
-import { orders } from "../database/schemas/orders.js";
+import { type OrderAddress, orders } from "../database/schemas/orders.js";
 import { productVariants } from "../database/schemas/product-variants.js";
 import { products } from "../database/schemas/products.js";
 import { stockLevels } from "../database/schemas/stock-levels.js";
-import type { OrderId, OrderLineId, ProductVariantId } from "../domain/ids.js";
+import type {
+	CustomerId,
+	OrderId,
+	OrderLineId,
+	ProductVariantId,
+} from "../domain/ids.js";
 import { invalid } from "../http/request-body.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
 import {
@@ -115,12 +123,16 @@ export async function cartView(
 		.select({
 			state: orders.state,
 			number: orders.number,
+			email: customers.email,
+			shippingAddress: orders.shippingAddress,
+			billingAddress: orders.billingAddress,
 			subtotal: orders.subtotal,
 			discount: orders.discount,
 			shipping: orders.shipping,
 			total: orders.total,
 		})
 		.from(orders)
+		.leftJoin(customers, eq(customers.id, orders.customerId))
 		.where(eq(orders.id, id));
 	const lines = await tx
 		.select({
@@ -135,8 +147,18 @@ export async function cartView(
 		.from(orderLines)
 		.where(eq(orderLines.orderId, id))
 		.orderBy(asc(orderLines.position));
-	const { state, number, ...totals } = order;
-	return { state, number, lines, ...totals };
+	const { state, number, email, shippingAddress, billingAddress, ...totals } =
+		order;
+	return {
+		state,
+		number,
+		// Only the e-mail: a guest's e-mail can be typed by anyone.
+		customer: email ? { email } : null,
+		shippingAddress,
+		billingAddress,
+		lines,
+		...totals,
+	};
 }
 
 /**
@@ -228,6 +250,44 @@ export class CartRepository {
 		});
 	}
 
+	/**
+	 * Sets who buys: a signed-in buyer, or a guest by e-mail (added when the
+	 * store has none; 409 for a registered buyer's e-mail).
+	 */
+	setCustomer(
+		tokenHash: string,
+		buyer: { customerId: CustomerId } | { guest: Guest },
+	): Promise<CartDto | undefined> {
+		return this.changeCart(tokenHash, async (tx, id) => {
+			const customerId =
+				"customerId" in buyer
+					? buyer.customerId
+					: await guestCustomer(tx, buyer.guest);
+			await tx
+				.update(orders)
+				.set({ customerId })
+				.where(eq(orders.id, id));
+		});
+	}
+
+	/** Keeps a copy of the address to ship to, or to bill. */
+	setAddress(
+		tokenHash: string,
+		kind: "shipping" | "billing",
+		address: OrderAddress,
+	): Promise<CartDto | undefined> {
+		return this.changeCart(tokenHash, async (tx, id) => {
+			await tx
+				.update(orders)
+				.set(
+					kind === "shipping"
+						? { shippingAddress: address }
+						: { billingAddress: address },
+				)
+				.where(eq(orders.id, id));
+		});
+	}
+
 	/** null when the cart has no such line; 409 past the units in stock. */
 	setQuantity(
 		tokenHash: string,
@@ -252,6 +312,20 @@ export class CartRepository {
 	): Promise<CartDto | null | undefined> {
 		return this.changeLine(tokenHash, lineId, async (tx) => {
 			await tx.delete(orderLines).where(eq(orderLines.id, lineId));
+		});
+	}
+
+	private changeCart(
+		tokenHash: string,
+		change: (tx: TenantTransaction, id: OrderId) => Promise<void>,
+	): Promise<CartDto | undefined> {
+		return this.tenantDb.run(async (tx) => {
+			const id = await lockCart(tx, tokenHash);
+			if (!id) {
+				return undefined;
+			}
+			await change(tx, id);
+			return cartView(tx, id);
 		});
 	}
 

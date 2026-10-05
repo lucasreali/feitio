@@ -43,6 +43,7 @@ import { type Actor, history, recordEvent } from "./customer-history.js";
 import type {
 	AddressChanges,
 	CustomerChanges,
+	Guest,
 	NewAddress,
 	NewCustomer,
 } from "./customer-input.js";
@@ -151,6 +152,36 @@ export async function lockCustomer(
 		.where(eq(customers.id, id))
 		.for("update");
 	return rows.length > 0;
+}
+
+/**
+ * The customer behind a guest's e-mail, added (and recorded) when the store
+ * has none. A guest the store already has is kept as it is: anyone can type
+ * an e-mail. 409 for a registered customer, who must sign in.
+ */
+export async function guestCustomer(
+	tx: TenantTransaction,
+	{ email, name, phone, taxId }: Guest,
+): Promise<CustomerId> {
+	const [added] = await tx
+		.insert(customers)
+		.values({ tenantId: TenantContext.id(), email, name, phone, taxId })
+		.onConflictDoNothing({ target: [customers.tenantId, customers.email] })
+		.returning({ id: customers.id });
+	if (added) {
+		await recordEvent(tx, added.id, "created", null);
+		return added.id;
+	}
+	const [customer] = await tx
+		.select({ id: customers.id, passwordHash: customers.passwordHash })
+		.from(customers)
+		.where(eq(customers.email, email));
+	if (customer.passwordHash !== null) {
+		throw new ConflictException(
+			"The store has an account with this e-mail; sign in to use it",
+		);
+	}
+	return customer.id;
 }
 
 /** Address fields as columns; a new default takes the place of the current one. */

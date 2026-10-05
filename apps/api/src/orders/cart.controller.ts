@@ -9,13 +9,23 @@ import {
 	Param,
 	Patch,
 	Post,
+	Put,
+	Req,
+	UnauthorizedException,
 } from "@nestjs/common";
 import {
 	ApiBadRequestResponse,
+	ApiBearerAuth,
 	ApiConflictResponse,
 	ApiHeader,
 	ApiNotFoundResponse,
+	ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import type { FastifyRequest } from "fastify";
+import { readCustomerSession } from "../customers/customer.guard.js";
+import { parseGuest, parseOrderAddress } from "../customers/customer-input.js";
+import { CUSTOMER_SECURITY } from "../customers/customer-scoped.decorator.js";
+import { CustomerSessions } from "../customers/customer-sessions.js";
 import { OrderLineId } from "../domain/ids.js";
 import { pathId } from "../http/request-body.js";
 import { TenantScoped } from "../tenancy/tenant-scoped.decorator.js";
@@ -25,8 +35,10 @@ import { cartTokenHash } from "./cart-token.js";
 import {
 	AddLineDto,
 	CartDto,
+	CartGuestDto,
 	LineQuantityDto,
 	NewCartDto,
+	SetOrderAddressDto,
 } from "./order.dto.js";
 
 /** Marks a route of the cart behind the X-Cart-Token header. */
@@ -62,7 +74,10 @@ const found = (cart: CartDto | null | undefined): CartDto => {
  */
 @Controller("store/cart")
 export class CartController {
-	constructor(private readonly carts: CartRepository) {}
+	constructor(
+		private readonly carts: CartRepository,
+		private readonly sessions: CustomerSessions,
+	) {}
 
 	/** Starts an empty cart; keep its token to change it and to follow the order. */
 	@Post()
@@ -97,6 +112,79 @@ export class CartController {
 		const hash = tokenHash(token);
 		const { variantId, quantity } = parseNewLine(body);
 		return found(await this.carts.addLine(hash, variantId, quantity));
+	}
+
+	/**
+	 * Sets who buys. With a buyer's token (`Authorization: Bearer`), the
+	 * signed-in buyer, and no body. Without one, a guest: the e-mail of a
+	 * guest the store already has links to them as they are; a new e-mail
+	 * adds a guest customer.
+	 */
+	@Put("customer")
+	@CartScoped()
+	@ApiBearerAuth(CUSTOMER_SECURITY)
+	@ApiBadRequestResponse({ description: "Invalid guest." })
+	@ApiUnauthorizedResponse({
+		description: "A buyer's token that is not valid for this store.",
+	})
+	@ApiConflictResponse({
+		description:
+			"The e-mail belongs to a registered buyer, who must sign in; or the order is no longer a cart.",
+	})
+	async setCustomer(
+		@Headers("x-cart-token") token: string | undefined,
+		@Req() request: FastifyRequest,
+		@Body() body: CartGuestDto,
+	): Promise<CartDto> {
+		const hash = tokenHash(token);
+		const session = await readCustomerSession(request, this.sessions);
+		if (session === null) {
+			throw new UnauthorizedException();
+		}
+		return found(
+			await this.carts.setCustomer(
+				hash,
+				session
+					? { customerId: session.customerId }
+					: { guest: parseGuest(body) },
+			),
+		);
+	}
+
+	@Put("shipping-address")
+	@CartScoped()
+	@ApiBadRequestResponse({ description: "Invalid address." })
+	@ApiConflictResponse({ description: "The order is no longer a cart." })
+	async setShippingAddress(
+		@Headers("x-cart-token") token: string | undefined,
+		@Body() body: SetOrderAddressDto,
+	): Promise<CartDto> {
+		const hash = tokenHash(token);
+		return found(
+			await this.carts.setAddress(
+				hash,
+				"shipping",
+				parseOrderAddress(body),
+			),
+		);
+	}
+
+	@Put("billing-address")
+	@CartScoped()
+	@ApiBadRequestResponse({ description: "Invalid address." })
+	@ApiConflictResponse({ description: "The order is no longer a cart." })
+	async setBillingAddress(
+		@Headers("x-cart-token") token: string | undefined,
+		@Body() body: SetOrderAddressDto,
+	): Promise<CartDto> {
+		const hash = tokenHash(token);
+		return found(
+			await this.carts.setAddress(
+				hash,
+				"billing",
+				parseOrderAddress(body),
+			),
+		);
 	}
 
 	@Patch("lines/:id")

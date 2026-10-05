@@ -25,5 +25,6 @@ import { CustomersAdminController } from "./customers-admin.controller.js";
 		CustomerSessions,
 		CustomerGuard,
 	],
+	exports: [CustomerSessions],
 })
 export class CustomersModule {}

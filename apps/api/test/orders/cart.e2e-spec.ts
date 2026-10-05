@@ -336,4 +336,155 @@ describe("Store cart routes (e2e)", () => {
 			}
 		});
 	});
+
+	describe("PUT /store/cart/customer", () => {
+		const guest = (email: string, name = "Ana Souza") => ({
+			email,
+			name,
+			phone: "(11) 98765-4321",
+			taxId: "529.982.247-25",
+		});
+		const setCustomer = (
+			token: string,
+			payload?: unknown,
+			headers?: Record<string, string>,
+		) => cart("PUT", "/store/cart/customer", { token, payload, headers });
+		const customerByEmail = async (email: string) =>
+			(
+				await panel.get(
+					`/admin/customers?q=${encodeURIComponent(email)}`,
+				)
+			).json<{
+				items: { id: string; name: string; registered: boolean }[];
+			}>().items;
+		const register = async (email: string) => {
+			const response = await app.inject({
+				method: "POST",
+				url: "/store/account/register",
+				headers: { "x-tenant": store.slug },
+				payload: { email, password: "correct horse", name: "Bia" },
+			});
+			expect(response.statusCode).toBe(201);
+			return response.json<{ token: string }>().token;
+		};
+
+		it("adds a guest customer for a new e-mail", async () => {
+			const email = `${crypto.randomUUID()}@example.com`;
+			const token = await newCart();
+
+			const response = await setCustomer(
+				token,
+				guest(email.toUpperCase()),
+			);
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json<{ customer: unknown }>().customer).toEqual({
+				email,
+			});
+			expect(await customerByEmail(email)).toMatchObject([
+				{ name: "Ana Souza", registered: false },
+			]);
+		});
+
+		it("links the guest the store already has, without changing them or showing them", async () => {
+			const email = `${crypto.randomUUID()}@example.com`;
+			await setCustomer(await newCart(), guest(email, "Ana Souza"));
+			const token = await newCart();
+
+			const response = await setCustomer(token, guest(email, "Someone"));
+
+			expect(response.json()).toMatchObject({ customer: { email } });
+			expect(JSON.stringify(response.json())).not.toContain("Ana");
+			expect(await customerByEmail(email)).toMatchObject([
+				{ name: "Ana Souza" },
+			]);
+		});
+
+		it("answers 409 to the e-mail of a registered buyer", async () => {
+			const email = `${crypto.randomUUID()}@example.com`;
+			await register(email);
+
+			const response = await setCustomer(await newCart(), guest(email));
+
+			expect(response.statusCode).toBe(409);
+		});
+
+		it("links the signed-in buyer", async () => {
+			const email = `${crypto.randomUUID()}@example.com`;
+			const buyer = await register(email);
+			const token = await newCart();
+
+			const response = await setCustomer(token, undefined, {
+				authorization: `Bearer ${buyer}`,
+			});
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toMatchObject({ customer: { email } });
+		});
+
+		it("answers 401 to a buyer token that is not valid", async () => {
+			const response = await setCustomer(await newCart(), undefined, {
+				authorization: `Bearer ${"x".repeat(43)}`,
+			});
+
+			expect(response.statusCode).toBe(401);
+		});
+
+		it.each([
+			["no e-mail", { name: "Ana" }],
+			["an invalid e-mail", { email: "ana", name: "Ana" }],
+			["no name", { email: "ana@example.com" }],
+			[
+				"an invalid phone",
+				{ email: "ana@example.com", name: "Ana", phone: "1" },
+			],
+		])("answers 400 to %s", async (_case, payload) => {
+			expect(
+				(await setCustomer(await newCart(), payload)).statusCode,
+			).toBe(400);
+		});
+	});
+
+	describe("PUT /store/cart/shipping-address and billing-address", () => {
+		const address = {
+			recipient: "Ana Souza",
+			phone: null,
+			cep: "01310-100",
+			street: "Av. Paulista",
+			number: "1000",
+			complement: "Apto 12",
+			neighborhood: "Bela Vista",
+			city: "São Paulo",
+			state: "sp",
+		};
+
+		it.each([
+			["shipping-address", "shippingAddress"],
+			["billing-address", "billingAddress"],
+		])("keeps a copy of the %s", async (path, field) => {
+			const token = await newCart();
+
+			const response = await cart("PUT", `/store/cart/${path}`, {
+				token,
+				payload: address,
+			});
+
+			expect(response.statusCode).toBe(200);
+			expect(response.json()).toMatchObject({
+				[field]: { ...address, cep: "01310100", state: "SP" },
+			});
+		});
+
+		it.each([
+			["an invalid CEP", { ...address, cep: "123" }],
+			["no street", { ...address, street: undefined }],
+			["a default flag", { ...address, defaultShipping: true }],
+		])("answers 400 to %s", async (_case, payload) => {
+			const response = await cart("PUT", "/store/cart/shipping-address", {
+				token: await newCart(),
+				payload,
+			});
+			expect(response.statusCode).toBe(400);
+		});
+	});
 });

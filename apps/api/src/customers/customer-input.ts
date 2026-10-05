@@ -93,12 +93,21 @@ export function parseNewCustomer(body: unknown): NewCustomer {
 	});
 }
 
+const guestParsers = { email: domain(Email, "email"), ...profileParsers };
+
+export type Guest = Parsed<typeof guestParsers>;
+
+/** A buyer without an account, as the checkout identifies them. */
+export function parseGuest(body: unknown): Guest {
+	return complete(body, guestParsers, { phone: null, taxId: null });
+}
+
 /** Body of PATCH /admin/customers/:id. */
 export function parseCustomerChanges(body: unknown): CustomerChanges {
 	return changes(body, customerParsers);
 }
 
-const addressParsers = {
+const addressFields = {
 	recipient: text("recipient", NAME_MAX),
 	phone: optionalDomain(Phone, "phone"),
 	cep: domain(Cep, "cep"),
@@ -108,6 +117,10 @@ const addressParsers = {
 	neighborhood: text("neighborhood", NAME_MAX),
 	city: text("city", NAME_MAX),
 	state: domain(BrazilianState, "state"),
+};
+
+const addressParsers = {
+	...addressFields,
 	/** The address becomes the customer's default for shipping (or stops being it). */
 	defaultShipping: flag("defaultShipping"),
 	defaultBilling: flag("defaultBilling"),
@@ -124,6 +137,11 @@ export function parseNewAddress(body: unknown): NewAddress {
 		defaultShipping: false,
 		defaultBilling: false,
 	});
+}
+
+/** An address on its own, as an order keeps it: no defaults of an address book. */
+export function parseOrderAddress(body: unknown): Parsed<typeof addressFields> {
+	return complete(body, addressFields, { phone: null, complement: null });
 }
 
 /** Body of an address change, in the panel and in the stores. */
