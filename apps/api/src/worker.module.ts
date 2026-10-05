@@ -11,11 +11,13 @@ import {
 	type QueueConnection,
 	queueConnection,
 } from "./events/queue.js";
+import { OrderExpiry } from "./orders/order-expiry.js";
 import { TenancyModule } from "./tenancy/tenancy.module.js";
 
 /**
- * The worker process (`src/worker.ts`): relays domain events to the queue and
- * runs their jobs, apart from the API's requests.
+ * The worker process (`src/worker.ts`): relays domain events to the queue,
+ * runs their jobs and expires unpaid orders and abandoned carts, apart from
+ * the API's requests.
  */
 @Module({
 	imports: [DatabaseModule, TenancyModule],
@@ -34,6 +36,7 @@ import { TenancyModule } from "./tenancy/tenancy.module.js";
 		{ provide: EVENT_HANDLERS, useValue: [] },
 		EventRelay,
 		EventJobs,
+		OrderExpiry,
 	],
 })
 export class WorkerModule implements OnApplicationShutdown {
