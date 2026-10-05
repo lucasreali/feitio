@@ -169,7 +169,7 @@ describe("Store product routes (e2e)", () => {
 				total: 3,
 				items: [
 					{
-						id: ids["Boné"],
+						id: ids.Boné,
 						name: "Boné",
 						slug: "bone",
 						price: 1500,
