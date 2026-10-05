@@ -1,6 +1,6 @@
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
-import type { TestingModule } from "@nestjs/testing";
 import { eq } from "drizzle-orm";
+import { DATABASE } from "../../src/database/database.js";
 import { orders } from "../../src/database/schemas/orders.js";
 import { OrderExpiry } from "../../src/orders/order-expiry.js";
 import { SessionService } from "../../src/session/session.service.js";
@@ -18,7 +18,6 @@ import {
 	startApp,
 	type TestTenant,
 	type TestUser,
-	testWorker,
 } from "../fixtures.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -33,7 +32,6 @@ interface OrderSummary {
 // PostgreSQL and Valkey in .env.
 describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 	let app: NestFastifyApplication;
-	let worker: TestingModule;
 	let fixtures: Fixtures;
 	let store: TestTenant;
 	let owner: TestUser;
@@ -72,11 +70,13 @@ describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 		);
 		return { id, variantId };
 	};
-	const expire = () => worker.get(OrderExpiry).expire();
+	// Built on the API's pool, not the worker module's: the pooler takes few
+	// connections. Not started, so only the calls below run it.
+	const expire = () =>
+		new OrderExpiry(app.get(DATABASE), app.get(TenantDatabase)).expire();
 
 	beforeAll(async () => {
 		app = await startApp();
-		worker = await testWorker([]);
 		fixtures = await Fixtures.open();
 		store = await fixtures.tenant();
 		owner = await fixtures.user();
@@ -88,7 +88,6 @@ describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 	afterAll(async () => {
 		await app.get(SessionService).destroyAllForUser(owner.id);
 		await fixtures.close();
-		await worker.close();
 		await app.close();
 	});
 

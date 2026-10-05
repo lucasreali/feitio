@@ -4,10 +4,13 @@ import {
 } from "@nestjs/platform-fastify";
 import { Test } from "@nestjs/testing";
 import { asc } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { AppModule } from "../src/app.module.js";
 import { configureApp } from "../src/app.setup.js";
 import { hashPassword } from "../src/auth/password.js";
+import { DATABASE, type Database } from "../src/database/database.js";
+import { schemas } from "../src/database/schema.js";
 import { domainEvents } from "../src/database/schemas/domain-events.js";
 import type { MembershipRole } from "../src/database/schemas/memberships.js";
 import { Cpf } from "../src/domain/cpf.js";
@@ -177,11 +180,30 @@ export async function signIn(
 	};
 }
 
+/**
+ * The API's database on a small pool. Three test files run at once, each
+ * with its app and fixtures, against a pooler of 15 clients; the default
+ * pool of 10 per app, idle connections kept 10 s, runs it out.
+ */
+function testDatabase(): Database {
+	const pool = new pg.Pool({
+		connectionString: process.env.DATABASE_URL,
+		max: 3,
+		connectionTimeoutMillis: 5_000,
+	});
+	// As in DatabaseModule: a dropped idle connection must not crash the run.
+	pool.on("error", (error) => console.error(error.message));
+	return drizzle({ client: pool, schema: schemas });
+}
+
 /** The whole API, configured like main.ts, ready for app.inject(). */
 export async function startApp(): Promise<NestFastifyApplication> {
 	const moduleRef = await Test.createTestingModule({
 		imports: [AppModule],
-	}).compile();
+	})
+		.overrideProvider(DATABASE)
+		.useFactory({ factory: testDatabase })
+		.compile();
 	const app = moduleRef.createNestApplication<NestFastifyApplication>(
 		new FastifyAdapter(),
 	);
@@ -247,6 +269,8 @@ export function storeEvents(app: NestFastifyApplication, tenant: TestTenant) {
  */
 export function testWorker(handlers: EventHandler[]) {
 	return Test.createTestingModule({ imports: [WorkerModule] })
+		.overrideProvider(DATABASE)
+		.useFactory({ factory: testDatabase })
 		.overrideProvider(QUEUE_OPTIONS)
 		.useValue({
 			...queueConnection(),
