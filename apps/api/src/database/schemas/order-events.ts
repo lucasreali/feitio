@@ -20,10 +20,17 @@ import { orders } from "./orders.js";
 import { tenants } from "./tenants.js";
 import { users } from "./users.js";
 
-/** `transition`: the order changed state (`from`, `to`). `note`: written by the store's staff, never shown to the buyer. */
+/**
+ * `transition`: the order changed state (`from`, `to`). `note`: written by
+ * the store's staff, never shown to the buyer. `payment`: a payment started
+ * or changed status (`paymentId`, `method`, `status`). `refund`: money went
+ * back to the buyer (`paymentId`, `amount`).
+ */
 export const orderEventKind = pgEnum("order_event_kind", [
 	"transition",
 	"note",
+	"payment",
+	"refund",
 ]);
 
 export type OrderEventKind = (typeof orderEventKind.enumValues)[number];

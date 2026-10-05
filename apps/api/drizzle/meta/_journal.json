@@ -211,6 +211,20 @@
       "when": 1791219646352,
       "tag": "0029_shipping_access",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791223866351,
+      "tag": "0030_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791223871007,
+      "tag": "0031_payments_access",
+      "breakpoints": true
     }
   ]
 }

@@ -14,6 +14,8 @@ import { memberships } from "./schemas/memberships.js";
 import { orderEvents } from "./schemas/order-events.js";
 import { orderLines } from "./schemas/order-lines.js";
 import { orders } from "./schemas/orders.js";
+import { paymentAccounts } from "./schemas/payment-accounts.js";
+import { payments } from "./schemas/payments.js";
 import { processedJobs } from "./schemas/processed-jobs.js";
 import { productFacetValues } from "./schemas/product-facet-values.js";
 import { productImages } from "./schemas/product-images.js";
@@ -63,4 +65,6 @@ export const schemas = {
 	orderLines,
 	orderEvents,
 	shippingMethods,
+	paymentAccounts,
+	payments,
 };

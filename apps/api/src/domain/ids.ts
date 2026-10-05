@@ -101,3 +101,11 @@ export const OrderEventId = entityId("OrderEventId");
 /** Id of a way a store ships: a fixed price, a carrier's service or pickup. */
 export type ShippingMethodId = Brand<string, "ShippingMethodId">;
 export const ShippingMethodId = entityId("ShippingMethodId");
+
+/** Id of a store's account at the payment gateway, which receives its sales. */
+export type PaymentAccountId = Brand<string, "PaymentAccountId">;
+export const PaymentAccountId = entityId("PaymentAccountId");
+
+/** Id of a payment of an order: one charge at the gateway. */
+export type PaymentId = Brand<string, "PaymentId">;
+export const PaymentId = entityId("PaymentId");

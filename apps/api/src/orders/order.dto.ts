@@ -205,9 +205,12 @@ export class OrderHistoryUserDto {
 
 export class OrderEventDto {
 	id: string;
-	/** `transition` or `note`. */
+	/** `transition`, `note`, `payment` or `refund`. */
 	kind: OrderEventKind;
-	/** `from` and `to` of a transition, or the `note`. */
+	/**
+	 * `from` and `to` of a transition, the `note`, a payment's `paymentId`,
+	 * `method` and `status`, or a refund's `paymentId` and `amount`.
+	 */
 	data: Record<string, unknown>;
 	/** The panel user who did it; null when the buyer or the system did. */
 	user: OrderHistoryUserDto | null;
