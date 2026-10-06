@@ -1,4 +1,5 @@
 import { ProductVariantId } from "../domain/ids.js";
+import { Money } from "../domain/money.js";
 import { invalid, objectBody } from "../http/request-body.js";
 
 /** Units of one variant in an order. */
@@ -29,4 +30,12 @@ export function parseNewLine(body: unknown): {
 /** Body of PATCH /store/cart/lines/:id. */
 export function parseLineQuantity(body: unknown): number {
 	return quantity(objectBody(body, ["quantity"]).quantity);
+}
+
+/** Body of POST /store/cart/place: the total the buyer saw, in cents. */
+export function parseExpectedTotal(body: unknown): Money {
+	const { expectedTotal } = objectBody(body, ["expectedTotal"]);
+	return Number.isSafeInteger(expectedTotal) && (expectedTotal as number) >= 0
+		? Money.parse(expectedTotal)
+		: invalid("expectedTotal must be the cart's total in cents");
 }

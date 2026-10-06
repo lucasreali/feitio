@@ -6,6 +6,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart as readyCartOf,
 	sellableVariant,
 	signIn,
@@ -43,8 +44,7 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 		variantId: string,
 		{ quantity = 1, client = cart } = {},
 	) => readyCartOf(client, variantId, { quantity });
-	const place = (token: string, client = cart) =>
-		client("POST", "/store/cart/place", { token });
+	const place = (token: string, client = cart) => placeOrder(client, token);
 	const reopen = (token: string) =>
 		cart("POST", "/store/cart/reopen", { token });
 
@@ -117,6 +117,22 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 				placed.map((response) => response.json<Cart>().number).sort(),
 			).toEqual([1, 2, 3]);
 			await app.get(SessionService).destroyAllForUser(otherOwner.id);
+		});
+
+		it("answers 400 without the total the buyer saw", async () => {
+			const { variantId } = await sellableVariant(panel);
+			const token = await readyCart(variantId);
+
+			for (const payload of [undefined, { expectedTotal: "10" }]) {
+				expect(
+					(
+						await cart("POST", "/store/cart/place", {
+							token,
+							payload,
+						})
+					).statusCode,
+				).toBe(400);
+			}
 		});
 
 		it("is placed once nothing is missing", async () => {
@@ -212,7 +228,6 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 					"/store/cart/customer",
 					{ email: "bia@example.com", name: "Bia" },
 				],
-				["POST", "/store/cart/place", undefined],
 			] as const) {
 				expect(
 					(await cart(method, url, { token, payload })).statusCode,

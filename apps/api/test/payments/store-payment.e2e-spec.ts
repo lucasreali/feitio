@@ -10,6 +10,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -42,7 +43,7 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 		email = `ana-${crypto.randomUUID()}@example.com`,
 	) => {
 		const token = await readyCart(cart, variantId, { email });
-		const placed = await cart("POST", "/store/cart/place", { token });
+		const placed = await placeOrder(cart, token);
 		expect(placed.statusCode).toBe(200);
 		return token;
 	};

@@ -5,6 +5,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	sellableVariant,
 	signIn,
 	startApp,
@@ -110,9 +111,9 @@ describe("Customer data requests, LGPD (e2e)", { timeout: 30_000 }, () => {
 			token,
 			payload: { methodId: option.id },
 		});
-		const { number } = (
-			await cart("POST", "/store/cart/place", { token })
-		).json<{ number: number }>();
+		const { number } = (await placeOrder(cart, token)).json<{
+			number: number;
+		}>();
 		const [{ id }] = (await panel.get(`/admin/orders?q=${number}`)).json<{
 			items: { id: string }[];
 		}>().items;

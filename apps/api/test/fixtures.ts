@@ -410,6 +410,17 @@ export const testAddress = {
 	state: "SP",
 };
 
+/** Places the cart for the total it shows, as the checkout does. */
+export async function placeOrder(cart: CartClient, token: string) {
+	const { total } = (await cart("GET", "/store/cart", { token })).json<{
+		total: number;
+	}>();
+	return cart("POST", "/store/cart/place", {
+		token,
+		payload: { expectedTotal: total },
+	});
+}
+
 /**
  * A cart ready to be placed: `quantity` units of the variant, a guest buyer,
  * a shipping address and the store's cheapest shipping (the store needs a

@@ -19,6 +19,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -77,7 +78,7 @@ describe("Payment reconciliation and deadlines (e2e)", {
 		const token = await readyCart(cart, variantId, {
 			email: `ana-${crypto.randomUUID()}@example.com`,
 		});
-		await cart("POST", "/store/cart/place", { token });
+		await placeOrder(cart, token);
 		return token;
 	};
 	const pay = async (token: string, method = "pix") =>

@@ -17,6 +17,7 @@ import type {
 	ProductVariantId,
 	ShippingMethodId,
 } from "../domain/ids.js";
+import type { Money } from "../domain/money.js";
 import { invalid } from "../http/request-body.js";
 import type { Parcel } from "../shipping/shipping-calculator.js";
 import type { ShippingChoice } from "../shipping/shipping-quotes.js";
@@ -414,13 +415,15 @@ export class CartRepository {
 	 * from checkout()), then awaits payment with its stock reserved. 409 for
 	 * a cart without lines, buyer, shipping method or shipping address
 	 * (unless picked up at the store), without the stock, or changed since
-	 * checkout().
+	 * checkout(). Also 409 when the total is no longer `expectedTotal`, what
+	 * the buyer saw: the cart keeps its new prices, for the buyer to see.
 	 */
-	place(
+	async place(
 		tokenHash: string,
 		quoted: Quoted | null,
+		expectedTotal: Money,
 	): Promise<CartDto | undefined> {
-		return this.tenantDb.run(async (tx) => {
+		const placed = await this.tenantDb.run(async (tx) => {
 			const order = await lockOrder(tx, tokenHash);
 			if (!order) {
 				return undefined;
@@ -436,11 +439,15 @@ export class CartRepository {
 				if (quoted) {
 					await applyShipping(tx, order.id, quoted.choice);
 				}
-				const { missing } = await cartView(tx, order.id);
+				const { missing, total } = await cartView(tx, order.id);
 				if (missing.length > 0) {
 					throw new ConflictException(
 						`The cart is missing ${missing.join(", ")}`,
 					);
+				}
+				if (total !== expectedTotal) {
+					// Commits the new prices: the buyer sees them before placing again.
+					return "changed" as const;
 				}
 			}
 			await transitionOrder(tx, order.id, "awaiting_payment", {
@@ -448,6 +455,12 @@ export class CartRepository {
 			});
 			return cartView(tx, order.id);
 		});
+		if (placed === "changed") {
+			throw new ConflictException(
+				"The cart's total changed; check it and place it again",
+			);
+		}
+		return placed;
 	}
 
 	/** Takes an order awaiting payment back to the cart, releasing its stock; it keeps its number. */

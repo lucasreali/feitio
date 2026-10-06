@@ -36,7 +36,11 @@ import { ShippingOptionDto } from "../shipping/shipping.dto.js";
 import { ShippingQuotes } from "../shipping/shipping-quotes.js";
 import { TenantScoped } from "../tenancy/tenant-scoped.decorator.js";
 import { CartRepository } from "./cart.repository.js";
-import { parseLineQuantity, parseNewLine } from "./cart-input.js";
+import {
+	parseExpectedTotal,
+	parseLineQuantity,
+	parseNewLine,
+} from "./cart-input.js";
 import { CartScoped, tokenHash } from "./cart-scoped.decorator.js";
 import {
 	AddLineDto,
@@ -44,6 +48,7 @@ import {
 	CartGuestDto,
 	LineQuantityDto,
 	NewCartDto,
+	PlaceOrderDto,
 	SetOrderAddressDto,
 	SetShippingMethodDto,
 } from "./order.dto.js";
@@ -106,27 +111,32 @@ export class CartController {
 	/**
 	 * Places the order: it awaits payment, with its stock reserved and its
 	 * number given. Prices are taken from the catalog once more, and the
-	 * chosen shipping is quoted again for the cart as it is now: that price
-	 * is final, whatever the buyer saw before.
+	 * chosen shipping is quoted again for the cart as it is now. When that
+	 * changes the total the buyer saw (`expectedTotal`), the cart keeps the
+	 * new prices and the answer is 409: the buyer checks them and places
+	 * again. Once placed, the total is final.
 	 */
 	@Post("place")
 	@HttpCode(200)
 	@CartScoped()
 	@ApiConflictResponse({
 		description:
-			"The cart has no lines, buyer, shipping method or shipping address; the chosen method can no longer ship it (it is dropped: choose another); there is not enough stock; the cart changed meanwhile; or it is no longer a cart.",
+			"The cart is missing a step (see `missing`); its total is no longer `expectedTotal`; the chosen method can no longer ship it (it is dropped: choose another); there is not enough stock; the cart changed meanwhile; or it is no longer a cart.",
 	})
+	@ApiBadRequestResponse({ description: "No valid expectedTotal." })
 	@ApiBadGatewayResponse({ description: "The carrier did not answer." })
 	async place(
 		@Headers("x-cart-token") token: string | undefined,
+		@Body() body: PlaceOrderDto,
 	): Promise<CartDto> {
 		const hash = tokenHash(token);
+		const expectedTotal = parseExpectedTotal(body);
 		const checkout = await this.carts.checkout(hash);
 		if (checkout === undefined) {
 			throw new NotFoundException();
 		}
 		if (!checkout?.methodId) {
-			return found(await this.carts.place(hash, null));
+			return found(await this.carts.place(hash, null, expectedTotal));
 		}
 		const { parcel, methodId } = checkout;
 		const choice = await this.quotes
@@ -144,7 +154,9 @@ export class CartController {
 				}
 				throw error;
 			});
-		return found(await this.carts.place(hash, { parcel, choice }));
+		return found(
+			await this.carts.place(hash, { parcel, choice }, expectedTotal),
+		);
 	}
 
 	/** Takes an order awaiting payment back to the cart, to change it; the stock is released. */

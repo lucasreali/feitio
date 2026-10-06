@@ -7,6 +7,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	sellableVariant,
 	signIn,
 	startApp,
@@ -106,6 +107,11 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 	};
 	const options = (token: string, query = "") =>
 		cart("GET", `/store/cart/shipping-options${query}`, { token });
+	const place = (token: string, expectedTotal: number) =>
+		cart("POST", "/store/cart/place", {
+			token,
+			payload: { expectedTotal },
+		});
 	const choose = (token: string, methodId: string) =>
 		cart("PUT", "/store/cart/shipping-method", {
 			token,
@@ -364,7 +370,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			const token = await cartWith(await variant());
 			await buyer(token);
 
-			const response = await cart("POST", "/store/cart/place", { token });
+			const response = await placeOrder(cart, token);
 
 			expect(response.statusCode).toBe(409);
 			expect(response.json<{ message: string }>().message).toContain(
@@ -382,7 +388,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 				}>().missing,
 			).toEqual([]);
 
-			const response = await cart("POST", "/store/cart/place", { token });
+			const response = await placeOrder(cart, token);
 
 			expect(response.statusCode).toBe(200);
 			expect(response.json<Cart>()).toMatchObject({
@@ -392,10 +398,11 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			});
 		});
 
-		it("quotes the chosen method again, and the order keeps that price", async () => {
+		it("quotes the chosen method again, and answers 409 with the new price saved when it changed", async () => {
 			const token = await cartWith(await variant({ price: 5000 }));
 			await buyer(token);
-			await choose(token, methods.sedex);
+			const seen = (await choose(token, methods.sedex)).json<Cart>()
+				.total;
 			carrierAnswer = () =>
 				new Response(
 					JSON.stringify({
@@ -405,9 +412,19 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 					}),
 				);
 			try {
-				const response = await cart("POST", "/store/cart/place", {
-					token,
+				const changed = await place(token, seen);
+
+				expect(changed.statusCode).toBe(409);
+				expect(
+					(await cart("GET", "/store/cart", { token })).json<Cart>(),
+				).toMatchObject({
+					state: "cart",
+					shipping: 3000,
+					total: 8000,
+					shippingMethod: { id: methods.sedex, deliveryDays: 5 },
 				});
+
+				const response = await place(token, 8000);
 
 				expect(response.statusCode).toBe(200);
 				expect(response.json<Cart>()).toMatchObject({
@@ -415,7 +432,6 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 					subtotal: 5000,
 					shipping: 3000,
 					total: 8000,
-					shippingMethod: { id: methods.sedex, deliveryDays: 5 },
 				});
 			} finally {
 				carrierAnswer = sedexAnswer;
@@ -426,16 +442,21 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			const variantId = await variant({ price: 19000 });
 			const token = await cartWith(variantId);
 			await buyer(token);
-			expect(
-				(await choose(token, methods.fixed)).json<Cart>().shipping,
-			).toBe(1500);
+			const seen = (await choose(token, methods.fixed)).json<Cart>();
+			expect(seen.shipping).toBe(1500);
 			await panel.patch(`/admin/variants/${variantId}`, { price: 21000 });
 
-			const response = await cart("POST", "/store/cart/place", { token });
-
-			expect(response.json<Cart>()).toMatchObject({
+			expect((await place(token, seen.total)).statusCode).toBe(409);
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<Cart>(),
+			).toMatchObject({
+				state: "cart",
 				subtotal: 21000,
 				shipping: 0,
+				total: 21000,
+			});
+			expect((await place(token, 21000)).json<Cart>()).toMatchObject({
+				state: "awaiting_payment",
 				total: 21000,
 			});
 		});
@@ -453,7 +474,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 				enabled: false,
 			});
 
-			const response = await cart("POST", "/store/cart/place", { token });
+			const response = await placeOrder(cart, token);
 
 			expect(response.statusCode).toBe(409);
 			expect(
@@ -471,9 +492,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			await choose(token, methods.sedex);
 			carrierAnswer = () => new Response("{}", { status: 503 });
 			try {
-				const response = await cart("POST", "/store/cart/place", {
-					token,
-				});
+				const response = await placeOrder(cart, token);
 				expect(response.statusCode).toBe(502);
 			} finally {
 				carrierAnswer = sedexAnswer;
@@ -491,7 +510,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			await buyer(token);
 			await choose(token, methods.fixed);
 
-			const response = await cart("POST", "/store/cart/place", { token });
+			const response = await placeOrder(cart, token);
 
 			expect(response.statusCode).toBe(409);
 			expect(response.json<{ message: string }>().message).toContain(

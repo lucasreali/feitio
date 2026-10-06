@@ -6,6 +6,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -63,9 +64,9 @@ describe("Order panel routes (e2e)", { timeout: 30_000 }, () => {
 			stock: 10,
 		});
 		const token = await readyCart(cart, variantId, { quantity, email });
-		const { number } = (
-			await cart("POST", "/store/cart/place", { token })
-		).json<{ number: number }>();
+		const { number } = (await placeOrder(cart, token)).json<{
+			number: number;
+		}>();
 		const listed = await panel.get(`/admin/orders?q=${number}`);
 		const [{ id }] = listed.json<{ items: OrderSummary[] }>().items;
 		return { id, number, variantId, sku, email, token };

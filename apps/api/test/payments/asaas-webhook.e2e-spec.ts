@@ -10,6 +10,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -52,7 +53,7 @@ describe("Asaas webhook (e2e)", { timeout: 30_000 }, () => {
 		const token = await readyCart(cart, variantId, {
 			email: `ana-${crypto.randomUUID()}@example.com`,
 		});
-		await cart("POST", "/store/cart/place", { token });
+		await placeOrder(cart, token);
 		const payment = (
 			await cart("POST", "/store/cart/payment", {
 				token,

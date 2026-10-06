@@ -87,6 +87,14 @@ export type CheckoutStep =
 	| "shipping_address"
 	| "shipping_method";
 
+export class PlaceOrderDto {
+	/**
+	 * The cart's total the buyer saw and agreed to pay, in cents. When the
+	 * prices or the shipping changed since, the order is not placed (409).
+	 */
+	expectedTotal: number;
+}
+
 export class SetShippingMethodDto {
 	/** The id of an option from GET /store/cart/shipping-options. */
 	methodId: string;

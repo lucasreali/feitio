@@ -12,6 +12,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -62,9 +63,9 @@ describe("Order expiry (e2e)", { timeout: 30_000 }, () => {
 	const unpaid = async () => {
 		const { variantId } = await sellableVariant(panel, { stock: 5 });
 		const token = await readyCart(cart, variantId, { quantity: 2 });
-		const { number } = (
-			await cart("POST", "/store/cart/place", { token })
-		).json<{ number: number }>();
+		const { number } = (await placeOrder(cart, token)).json<{
+			number: number;
+		}>();
 		const [{ id }] = (await ordersIn("awaiting_payment")).filter(
 			(order) => order.number === number,
 		);

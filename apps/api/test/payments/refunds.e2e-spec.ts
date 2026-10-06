@@ -6,6 +6,7 @@ import {
 	Fixtures,
 	type PanelClient,
 	panelClient,
+	placeOrder,
 	readyCart,
 	sellableVariant,
 	signIn,
@@ -41,9 +42,7 @@ describe("Payments in the panel and refunds (e2e)", { timeout: 30_000 }, () => {
 		const token = await readyCart(cart, variantId, {
 			email: `ana-${crypto.randomUUID()}@example.com`,
 		});
-		const { number } = (
-			await cart("POST", "/store/cart/place", { token })
-		).json();
+		const { number } = (await placeOrder(cart, token)).json();
 		const { items } = (await owner.get(`/admin/orders?q=${number}`)).json<{
 			items: { id: string }[];
 		}>();
