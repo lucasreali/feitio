@@ -150,7 +150,7 @@ describe("Asaas webhook (e2e)", { timeout: 30_000 }, () => {
 		await runJob({ type: "payment.notified", gatewayId });
 
 		expect(
-			(await cart("GET", "/store/cart/payment", { token })).json(),
+			(await cart("GET", "/store/cart", { token })).json().payment,
 		).toMatchObject({
 			id: paymentId,
 			status: "confirmed",
@@ -173,7 +173,7 @@ describe("Asaas webhook (e2e)", { timeout: 30_000 }, () => {
 		await runJob({ type: "payment.notified", gatewayId });
 
 		expect(
-			(await cart("GET", "/store/cart/payment", { token })).json().status,
+			(await cart("GET", "/store/cart", { token })).json().payment.status,
 		).toBe("failed");
 		const again = await cart("POST", "/store/cart/payment", {
 			token,

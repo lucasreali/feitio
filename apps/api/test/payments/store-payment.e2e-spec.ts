@@ -136,9 +136,6 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 		});
 
 		expect(
-			(await cart("GET", "/store/cart/payment", { token })).json(),
-		).toEqual(payment);
-		expect(
 			(await cart("GET", "/store/cart", { token })).json().payment,
 		).toEqual(payment);
 		// One payment under way at a time, and the order cannot change meanwhile.
@@ -283,8 +280,8 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 		asaas.control.down = false;
 
 		expect(response.statusCode).toBe(502);
-		const payment = (
-			await cart("GET", "/store/cart/payment", { token })
+		const { payment } = (
+			await cart("GET", "/store/cart", { token })
 		).json();
 		expect(payment.status).toBe("pending");
 	});
@@ -313,8 +310,8 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 				.statusCode,
 		).toBe(409);
 		expect(
-			(await cart("GET", "/store/cart/payment", { token })).statusCode,
-		).toBe(404);
+			(await cart("GET", "/store/cart", { token })).json().payment,
+		).toBe(null);
 		expect((await pay("unknown-token", { method: "pix" })).statusCode).toBe(
 			404,
 		);

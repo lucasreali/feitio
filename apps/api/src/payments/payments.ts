@@ -264,17 +264,6 @@ export class Payments {
 		});
 	}
 
-	/** The latest payment of the order behind the cart token; null without one. */
-	async latest(tokenHash: string): Promise<PaymentDto | null | undefined> {
-		return this.tenantDb.run(async (tx) => {
-			const [order] = await tx
-				.select({ id: orders.id })
-				.from(orders)
-				.where(eq(orders.tokenHash, tokenHash));
-			return order && ((await orderPayments(tx, order.id))[0] ?? null);
-		});
-	}
-
 	/** Records the payment and gathers what the gateway needs to charge it. */
 	private async start(
 		tx: TenantTransaction,

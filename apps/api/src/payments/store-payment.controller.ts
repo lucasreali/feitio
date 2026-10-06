@@ -1,7 +1,6 @@
 import {
 	Body,
 	Controller,
-	Get,
 	Headers,
 	NotFoundException,
 	Post,
@@ -56,19 +55,6 @@ export class StorePaymentController {
 			parsePaymentRequest(body),
 			request.ip,
 		);
-		if (!payment) {
-			throw new NotFoundException();
-		}
-		return payment;
-	}
-
-	/** The order's latest payment, with what the buyer pays with. */
-	@Get()
-	@CartScoped()
-	async latest(
-		@Headers("x-cart-token") token: string | undefined,
-	): Promise<PaymentDto> {
-		const payment = await this.payments.latest(tokenHash(token));
 		if (!payment) {
 			throw new NotFoundException();
 		}

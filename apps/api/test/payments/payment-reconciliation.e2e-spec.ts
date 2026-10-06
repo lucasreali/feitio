@@ -87,7 +87,7 @@ describe("Payment reconciliation and deadlines (e2e)", {
 			payload: { method, taxId: "52998224725" },
 		});
 	const latest = async (token: string) =>
-		(await cart("GET", "/store/cart/payment", { token })).json();
+		(await cart("GET", "/store/cart", { token })).json().payment;
 	const state = async (token: string) =>
 		(await cart("GET", "/store/cart", { token })).json().state;
 	const reconcile = (now?: Date) =>
