@@ -1,5 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { API_SECTIONS, readConfig, WORKER_SECTIONS } from "./config.js";
+import {
+	API_SECTIONS,
+	type ConfigSection,
+	readConfig,
+	WORKER_SECTIONS,
+} from "./config.js";
 
 /** Every variable the API needs, valid. */
 const complete = {
@@ -23,11 +28,15 @@ const complete = {
 	PAYMENT_FEE_PERCENT: "0",
 	PAYMENT_SECRET_KEY: randomBytes(32).toString("base64"),
 	PUBLIC_API_URL: "http://localhost:3000/",
+	RESEND_API_KEY: "re_key",
+	EMAIL_FROM: "Pedidos@Feitio.com.br",
 };
+
+const ALL_SECTIONS = [...new Set([...API_SECTIONS, ...WORKER_SECTIONS])];
 
 const problems = (
 	env: Record<string, string | undefined>,
-	sections = API_SECTIONS,
+	sections: readonly ConfigSection[] = API_SECTIONS,
 ) => {
 	try {
 		readConfig(env, sections);
@@ -85,8 +94,17 @@ describe("readConfig", () => {
 		const { STORAGE_REGION, MELHOR_ENVIO_TOKEN, COOKIE_SECRET, ...worker } =
 			complete;
 		expect(Object.keys(readConfig(worker, WORKER_SECTIONS)).sort()).toEqual(
-			["asaas", "database", "payments", "valkey"],
+			["asaas", "database", "email", "payments", "valkey"],
 		);
+	});
+
+	it("reads the e-mail settings only for the worker, which sends them all", () => {
+		const { RESEND_API_KEY, EMAIL_FROM, ...api } = complete;
+		expect(problems(api)).toEqual([]);
+		expect(readConfig(complete, WORKER_SECTIONS).email).toEqual({
+			resendApiKey: "re_key",
+			from: "pedidos@feitio.com.br",
+		});
 	});
 
 	it("lists every problem at once, not only the first", () => {
@@ -138,8 +156,9 @@ describe("readConfig", () => {
 		["PAYMENT_FEE_PERCENT", "100", "a percent from 0 to 99.99"],
 		["PAYMENT_FEE_PERCENT", "abc", "a percent from 0 to 99.99"],
 		["PAYMENT_SECRET_KEY", "c2hvcnQ=", "32 random bytes in base64"],
+		["EMAIL_FROM", "Loja pedidos@feitio.com.br", "an e-mail address"],
 	])("refuses %s=%s", (name, value, expected) => {
-		expect(problems({ ...complete, [name]: value })).toEqual([
+		expect(problems({ ...complete, [name]: value }, ALL_SECTIONS)).toEqual([
 			`${name} must be ${expected}.`,
 		]);
 	});

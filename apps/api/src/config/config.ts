@@ -1,3 +1,4 @@
+import { Email } from "../domain/email.js";
 import type { SessionConfig } from "../session/session.config.js";
 
 type Env = Record<string, string | undefined>;
@@ -30,6 +31,12 @@ export interface AppConfig {
 		/** Where the gateway reaches the API, without the trailing slash. */
 		publicApiUrl: string;
 	};
+	/** Sending e-mail (the worker only: every e-mail goes through the queue). */
+	email: {
+		resendApiKey: string;
+		/** The address every store sends from, on Feitio's verified domain. */
+		from: Email;
+	};
 }
 
 export type ConfigSection = keyof AppConfig;
@@ -52,6 +59,7 @@ export const WORKER_SECTIONS = [
 	"valkey",
 	"asaas",
 	"payments",
+	"email",
 ] as const satisfies readonly ConfigSection[];
 
 const HOW_TO_FIX =
@@ -123,6 +131,17 @@ function reader(env: Env) {
 		}
 		fail(`${name} must be ${expected}.`);
 		return 0;
+	};
+
+	const email = (name: string) => {
+		const value = required(name);
+		if (!value) {
+			return value as Email;
+		}
+		return (
+			Email.tryParse(value) ??
+			(fail(`${name} must be an e-mail address.`) as Email)
+		);
 	};
 
 	const sections: { [S in ConfigSection]: () => AppConfig[S] } = {
@@ -222,6 +241,10 @@ function reader(env: Env) {
 				publicApiUrl: publicApiUrl.replace(/\/$/, ""),
 			};
 		},
+		email: () => ({
+			resendApiKey: required("RESEND_API_KEY"),
+			from: email("EMAIL_FROM"),
+		}),
 	};
 	return { sections, problems };
 }
