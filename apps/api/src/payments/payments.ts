@@ -5,7 +5,7 @@ import {
 	Injectable,
 	Logger,
 } from "@nestjs/common";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { translateConstraints } from "../database/pg-error.js";
 import { customers } from "../database/schemas/customers.js";
 import { orders } from "../database/schemas/orders.js";
@@ -110,6 +110,8 @@ export class Payments {
 	 * answers the payment as failed, and the buyer may pay again; a gateway
 	 * that does not answer is 502, and the payment stays pending for the
 	 * reconciliation to check. undefined when the store has no such order.
+	 * Paying again by the method of the payment under way or done answers
+	 * that payment, without charging again.
 	 */
 	async pay(
 		tokenHash: string,
@@ -121,6 +123,9 @@ export class Payments {
 		);
 		if (!started) {
 			return undefined;
+		}
+		if (started.existing) {
+			return this.tenantDb.run((tx) => paymentView(tx, started.id));
 		}
 		const { id, credential, input } = started;
 		let charge: GatewayCharge;
@@ -298,6 +303,22 @@ export class Payments {
 		if (!order) {
 			return undefined;
 		}
+		const [open] = await tx
+			.select({ id: payments.id, method: payments.method })
+			.from(payments)
+			.where(
+				and(
+					eq(payments.orderId, order.id),
+					inArray(payments.status, ["pending", "confirmed"]),
+				),
+			);
+		if (
+			open?.method === request.method &&
+			(order.state === "awaiting_payment" || order.state === "paid")
+		) {
+			// A repeated request (a double click, a retry) answers the payment it made.
+			return { existing: true as const, id: open.id };
+		}
 		if (order.state !== "awaiting_payment") {
 			throw new ConflictException(
 				"Only an order awaiting payment is paid",
@@ -369,6 +390,6 @@ export class Payments {
 			remoteIp,
 			platformFeePercent: this.settings.feePercent,
 		};
-		return { id, credential, input };
+		return { existing: false as const, id, credential, input };
 	}
 }

@@ -119,6 +119,42 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 			await app.get(SessionService).destroyAllForUser(otherOwner.id);
 		});
 
+		it("answers the placed order to a repeated placement, reserving once", async () => {
+			const { variantId } = await sellableVariant(panel, { stock: 5 });
+			const token = await readyCart(variantId, { quantity: 2 });
+
+			const placed = await Promise.all([place(token), place(token)]);
+			placed.push(await place(token));
+
+			expect(placed.map((response) => response.statusCode)).toEqual([
+				200, 200, 200,
+			]);
+			const [first, ...again] = placed.map((response) =>
+				response.json<Cart>(),
+			);
+			expect(first.state).toBe("awaiting_payment");
+			for (const order of again) {
+				expect(order).toEqual(first);
+			}
+			expect(await stockOf(variantId)).toMatchObject({
+				available: 3,
+				reserved: 2,
+			});
+		});
+
+		it("answers 409 to placing a placed order again for another total", async () => {
+			const { variantId } = await sellableVariant(panel);
+			const token = await readyCart(variantId);
+			const { total } = (await place(token)).json<Cart>();
+
+			const response = await cart("POST", "/store/cart/place", {
+				token,
+				payload: { expectedTotal: total + 1 },
+			});
+
+			expect(response.statusCode).toBe(409);
+		});
+
 		it("answers 400 without the total the buyer saw", async () => {
 			const { variantId } = await sellableVariant(panel);
 			const token = await readyCart(variantId);

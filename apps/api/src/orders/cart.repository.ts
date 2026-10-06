@@ -417,6 +417,8 @@ export class CartRepository {
 	 * (unless picked up at the store), without the stock, or changed since
 	 * checkout(). Also 409 when the total is no longer `expectedTotal`, what
 	 * the buyer saw: the cart keeps its new prices, for the buyer to see.
+	 * Placing an order awaiting payment again for its total answers it as it
+	 * is, so a repeated request never fails nor reserves twice.
 	 */
 	async place(
 		tokenHash: string,
@@ -427,6 +429,13 @@ export class CartRepository {
 			const order = await lockOrder(tx, tokenHash);
 			if (!order) {
 				return undefined;
+			}
+			if (order.state === "awaiting_payment") {
+				// A repeated placement (a double click, a retry) answers the order as placed.
+				const view = await cartView(tx, order.id);
+				if (view.total === expectedTotal) {
+					return view;
+				}
 			}
 			if (order.state === "cart") {
 				await reprice(tx, order.id);

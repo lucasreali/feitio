@@ -28,6 +28,8 @@ export class StorePaymentController {
 	 * buyer pays with: the Pix code, the boleto's line, or the card's result.
 	 * A declined card is a `failed` payment, with the reason in `failure`;
 	 * the buyer may pay again. A confirmed payment marks the order paid.
+	 * Paying again by the method of the payment under way or done (a double
+	 * click, a retry) answers that payment, without charging again.
 	 */
 	@Post()
 	@CartScoped()
@@ -37,7 +39,7 @@ export class StorePaymentController {
 	})
 	@ApiConflictResponse({
 		description:
-			"The order is not awaiting payment, already has a payment under way or done, or needs a billing address for a card; or the store does not take payments yet.",
+			"The order is not awaiting payment, already has a payment under way or done by another method, or needs a billing address for a card; or the store does not take payments yet.",
 	})
 	@ApiBadGatewayResponse({
 		description:

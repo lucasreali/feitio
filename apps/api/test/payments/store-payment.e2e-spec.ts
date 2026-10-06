@@ -151,6 +151,54 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 		);
 	});
 
+	const charges = () =>
+		asaas.requests.filter(
+			(r) => r.method === "POST" && r.path === "/v3/payments",
+		).length;
+
+	it("answers a repeated payment by the same method with the one under way, charging once", async () => {
+		const token = await placedOrder();
+		const body = { method: "pix", taxId: "52998224725" };
+		const before = charges();
+
+		const answers = await Promise.all([pay(token, body), pay(token, body)]);
+		answers.push(await pay(token, body));
+
+		expect(answers.map((response) => response.statusCode)).toEqual([
+			201, 201, 201,
+		]);
+		const [first, ...again] = answers.map((response) => response.json());
+		for (const payment of again) {
+			expect(payment.id).toBe(first.id);
+		}
+		expect(again.at(-1)).toMatchObject({
+			status: "pending",
+			pix: { code: expect.stringMatching(/^pix-pay_/) },
+		});
+		expect(charges() - before).toBe(1);
+	});
+
+	it("answers a repeated card payment with the paid one, charging the card once", async () => {
+		const token = await placedOrder();
+		const body = {
+			method: "card",
+			card,
+			taxId: "52998224725",
+			phone: "11988887777",
+		};
+		const first = (await pay(token, body)).json();
+		const before = charges();
+
+		const again = await pay(token, body);
+
+		expect(again.statusCode).toBe(201);
+		expect(again.json()).toMatchObject({
+			id: first.id,
+			status: "confirmed",
+		});
+		expect(charges()).toBe(before);
+	});
+
 	it("charges a boleto due in 3 days, with its line to pay", async () => {
 		const token = await placedOrder();
 		const payment = (
