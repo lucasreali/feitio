@@ -20,6 +20,7 @@ interface Cart {
 	state: string;
 	number: number | null;
 	total: number;
+	missing: string[];
 }
 
 // Runs against the real PostgreSQL and Valkey in .env.test, on stores of its own.
@@ -118,42 +119,71 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 			await app.get(SessionService).destroyAllForUser(otherOwner.id);
 		});
 
-		it.each([
-			["no lines", { lines: false }],
-			["no customer", { customer: false }],
-			["no shipping address", { address: false }],
-		] as [string, { lines?: false; customer?: false; address?: false }][])(
-			"answers 409 to a cart with %s",
-			async (_case, missing) => {
-				const { variantId } = await sellableVariant(panel);
-				const token = (await cart("POST", "/store/cart")).json<{
-					token: string;
-				}>().token;
-				if (missing.lines !== false) {
-					await cart("POST", "/store/cart/lines", {
-						token,
-						payload: { variantId, quantity: 1 },
-					});
-				}
-				if (missing.customer !== false) {
-					await cart("PUT", "/store/cart/customer", {
-						token,
-						payload: { email: "ana@example.com", name: "Ana" },
-					});
-				}
-				if (missing.address !== false) {
-					await cart("PUT", "/store/cart/shipping-address", {
-						token,
-						payload: testAddress,
-					});
-				}
+		it("is placed once nothing is missing", async () => {
+			const { variantId } = await sellableVariant(panel);
+			const token = await readyCart(variantId);
 
-				expect((await place(token)).statusCode).toBe(409);
-				expect(
-					(await cart("GET", "/store/cart", { token })).json<Cart>(),
-				).toMatchObject({ state: "cart", number: null });
-			},
-		);
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<Cart>()
+					.missing,
+			).toEqual([]);
+		});
+
+		it("lists every step a new cart is missing", async () => {
+			const token = (await cart("POST", "/store/cart")).json<{
+				token: string;
+			}>().token;
+
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<Cart>()
+					.missing,
+			).toEqual([
+				"lines",
+				"customer",
+				"shipping_address",
+				"shipping_method",
+			]);
+		});
+
+		it.each([
+			["no lines", { lines: false }, "lines"],
+			["no customer", { customer: false }, "customer"],
+			["no shipping address", { address: false }, "shipping_address"],
+		] as [
+			string,
+			{ lines?: false; customer?: false; address?: false },
+			string,
+		][])("answers 409 to a cart with %s", async (_case, missing, step) => {
+			const { variantId } = await sellableVariant(panel);
+			const token = (await cart("POST", "/store/cart")).json<{
+				token: string;
+			}>().token;
+			if (missing.lines !== false) {
+				await cart("POST", "/store/cart/lines", {
+					token,
+					payload: { variantId, quantity: 1 },
+				});
+			}
+			if (missing.customer !== false) {
+				await cart("PUT", "/store/cart/customer", {
+					token,
+					payload: { email: "ana@example.com", name: "Ana" },
+				});
+			}
+			if (missing.address !== false) {
+				await cart("PUT", "/store/cart/shipping-address", {
+					token,
+					payload: testAddress,
+				});
+			}
+
+			expect((await place(token)).statusCode).toBe(409);
+			const after = (
+				await cart("GET", "/store/cart", { token })
+			).json<Cart>();
+			expect(after).toMatchObject({ state: "cart", number: null });
+			expect(after.missing).toContain(step);
+		});
 
 		it("answers 409 when the stock ran out after the item was added, and reserves nothing", async () => {
 			const { variantId } = await sellableVariant(panel, { stock: 2 });

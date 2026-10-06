@@ -73,7 +73,19 @@ export class CartDto {
 	shippingMethod: OrderShippingMethodDto | null;
 	/** The carrier's tracking code, once the store ships the order. */
 	trackingCode: string | null;
+	/**
+	 * The checkout's steps the cart still needs before it is placed, in their
+	 * order: `lines`, `customer`, `shipping_address` (not for pickup) and
+	 * `shipping_method`. Empty once it can be placed, and for placed orders.
+	 */
+	missing: CheckoutStep[];
 }
+
+export type CheckoutStep =
+	| "lines"
+	| "customer"
+	| "shipping_address"
+	| "shipping_method";
 
 export class SetShippingMethodDto {
 	/** The id of an option from GET /store/cart/shipping-options. */

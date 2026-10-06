@@ -27,7 +27,7 @@ import {
 } from "../tenancy/tenant-database.js";
 import { MAX_QUANTITY } from "./cart-input.js";
 import { newCartToken } from "./cart-token.js";
-import type { CartDto } from "./order.dto.js";
+import type { CartDto, CheckoutStep } from "./order.dto.js";
 import { linesOf, shippingMethodOf } from "./order-lines.js";
 import { transitionOrder } from "./order-transitions.js";
 
@@ -47,16 +47,9 @@ async function lockOrder(tx: TenantTransaction, tokenHash: string) {
 		.select({
 			id: orders.id,
 			state: orders.state,
-			customerId: orders.customerId,
-			shippingAddress: orders.shippingAddress,
 			shippingMethodId: orders.shippingMethodId,
-			shippingKind: shippingMethods.kind,
 		})
 		.from(orders)
-		.leftJoin(
-			shippingMethods,
-			eq(shippingMethods.id, orders.shippingMethodId),
-		)
 		.where(eq(orders.tokenHash, tokenHash))
 		.for("update", { of: orders });
 	return order;
@@ -248,6 +241,7 @@ export async function cartView(
 			state: orders.state,
 			number: orders.number,
 			email: customers.email,
+			shippingKind: shippingMethods.kind,
 			shippingAddress: orders.shippingAddress,
 			billingAddress: orders.billingAddress,
 			subtotal: orders.subtotal,
@@ -259,10 +253,32 @@ export async function cartView(
 		})
 		.from(orders)
 		.leftJoin(customers, eq(customers.id, orders.customerId))
+		.leftJoin(
+			shippingMethods,
+			eq(shippingMethods.id, orders.shippingMethodId),
+		)
 		.where(eq(orders.id, id));
 	const lines = await linesOf(tx, id);
-	const { state, number, email, shippingAddress, billingAddress, ...rest } =
-		order;
+	const {
+		state,
+		number,
+		email,
+		shippingKind,
+		shippingAddress,
+		billingAddress,
+		...rest
+	} = order;
+	const missing: CheckoutStep[] =
+		state === "cart"
+			? [
+					lines.length === 0 && ("lines" as const),
+					!email && ("customer" as const),
+					!shippingAddress &&
+						shippingKind !== "pickup" &&
+						("shipping_address" as const),
+					!shippingKind && ("shipping_method" as const),
+				].filter((step) => step !== false)
+			: [];
 	return {
 		state,
 		number,
@@ -272,6 +288,7 @@ export async function cartView(
 		billingAddress,
 		lines,
 		...rest,
+		missing,
 	};
 }
 
@@ -419,22 +436,10 @@ export class CartRepository {
 				if (quoted) {
 					await applyShipping(tx, order.id, quoted.choice);
 				}
-				const [line] = await tx
-					.select({ id: orderLines.id })
-					.from(orderLines)
-					.where(eq(orderLines.orderId, order.id))
-					.limit(1);
-				const missing = [
-					!line && "lines",
-					!order.customerId && "a customer",
-					!order.shippingKind && "a shipping method",
-					!order.shippingAddress &&
-						order.shippingKind !== "pickup" &&
-						"a shipping address",
-				].filter(Boolean);
+				const { missing } = await cartView(tx, order.id);
 				if (missing.length > 0) {
 					throw new ConflictException(
-						`The cart needs ${missing.join(", ")}`,
+						`The cart is missing ${missing.join(", ")}`,
 					);
 				}
 			}

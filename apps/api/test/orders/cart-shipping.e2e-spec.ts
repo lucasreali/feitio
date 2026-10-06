@@ -368,7 +368,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 
 			expect(response.statusCode).toBe(409);
 			expect(response.json<{ message: string }>().message).toContain(
-				"a shipping method",
+				"shipping_method",
 			);
 		});
 
@@ -376,6 +376,11 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 			const token = await cartWith(await variant(), { address: false });
 			await buyer(token);
 			await choose(token, methods.pickup);
+			expect(
+				(await cart("GET", "/store/cart", { token })).json<{
+					missing: string[];
+				}>().missing,
+			).toEqual([]);
 
 			const response = await cart("POST", "/store/cart/place", { token });
 
@@ -490,7 +495,7 @@ describe("Shipping in the cart (e2e)", { timeout: 30_000 }, () => {
 
 			expect(response.statusCode).toBe(409);
 			expect(response.json<{ message: string }>().message).toContain(
-				"a shipping address",
+				"shipping_address",
 			);
 		});
 	});
