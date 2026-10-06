@@ -153,11 +153,11 @@ Equivale a PaymentMethod, Payment e Refund.
 
 Junta carrinho, cliente, frete e pagamento em um fluxo único, consumido pelo app de checkout.
 
-- [ ] Etapas: identificação, endereço, frete e pagamento
-- [ ] Validação final antes de cobrar: estoque, preços e frete ainda válidos
-- [ ] Criação da cobrança e retorno dos dados para a tela (código Pix, linha do boleto, situação do cartão)
-- [ ] Consulta da situação do pedido para a página de confirmação
-- [ ] Proteção contra envio duplicado do mesmo pedido
+- [x] Etapas: identificação, endereço, frete e pagamento
+- [x] Validação final antes de cobrar: estoque, preços e frete ainda válidos
+- [x] Criação da cobrança e retorno dos dados para a tela (código Pix, linha do boleto, situação do cartão)
+- [x] Consulta da situação do pedido para a página de confirmação
+- [x] Proteção contra envio duplicado do mesmo pedido
 
 ## Fase 10: Notificações
 
