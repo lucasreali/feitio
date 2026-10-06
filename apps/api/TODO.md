@@ -163,10 +163,10 @@ Junta carrinho, cliente, frete e pagamento em um fluxo único, consumido pelo ap
 
 Equivale ao EmailPlugin.
 
-- [ ] Interface de envio de e-mail, com adaptador para o serviço escolhido
-- [ ] Modelos por evento: pedido recebido, pagamento confirmado, pedido enviado, pedido cancelado
-- [ ] Modelos com o nome, o logo e as cores da loja
-- [ ] Envio sempre pela fila
+- [x] Interface de envio de e-mail, com adaptador para o serviço escolhido
+- [x] Modelos por evento: pedido recebido, pagamento confirmado, pedido enviado, pedido cancelado
+- [x] Modelos com o nome, o logo e as cores da loja
+- [x] Envio sempre pela fila
 - [ ] Convite de usuário e recuperação de senha do painel
 - [ ] Verificação do e-mail e recuperação de senha do comprador; com o e-mail verificado, o cadastro passa a assumir o cliente visitante de mesmo e-mail (hoje responde 409)
 - [ ] Adaptador de WhatsApp, como módulo avulso

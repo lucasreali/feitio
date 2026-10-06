@@ -11,6 +11,8 @@ import {
 	type QueueConnection,
 	queueConnection,
 } from "./events/queue.js";
+import { NotificationsModule } from "./notifications/notifications.module.js";
+import { OrderNotifications } from "./notifications/order-notifications.js";
 import { OrderExpiry } from "./orders/order-expiry.js";
 import { PaymentGatewayModule } from "./payments/payment-gateway.module.js";
 import { PaymentNotifications } from "./payments/payment-notifications.js";
@@ -19,12 +21,17 @@ import { TenancyModule } from "./tenancy/tenancy.module.js";
 
 /**
  * The worker process (`src/worker.ts`): relays domain events to the queue,
- * runs their jobs (payments the gateway notified, among them), checks
+ * runs their jobs (payments the gateway notified and e-mails, among them), checks
  * pending payments with the gateway and expires unpaid orders and abandoned
  * carts, apart from the API's requests.
  */
 @Module({
-	imports: [DatabaseModule, PaymentGatewayModule, TenancyModule],
+	imports: [
+		DatabaseModule,
+		NotificationsModule,
+		PaymentGatewayModule,
+		TenancyModule,
+	],
 	providers: [
 		{ provide: QUEUE_OPTIONS, useFactory: queueConnection },
 		{
@@ -36,11 +43,14 @@ import { TenancyModule } from "./tenancy/tenancy.module.js";
 				}),
 			inject: [QUEUE_OPTIONS],
 		},
-		// Modules add their handlers here as they arrive (notifications, search).
+		// Modules add their handlers here as they arrive (search).
 		{
 			provide: EVENT_HANDLERS,
-			useFactory: (payments: PaymentNotifications) => [payments],
-			inject: [PaymentNotifications],
+			useFactory: (
+				payments: PaymentNotifications,
+				orders: OrderNotifications,
+			) => [payments, orders],
+			inject: [PaymentNotifications, OrderNotifications],
 		},
 		EventRelay,
 		EventJobs,

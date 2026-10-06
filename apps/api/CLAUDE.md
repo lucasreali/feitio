@@ -129,6 +129,12 @@ Each tenant is a merchant, and no tenant may read or change another's data. Post
 - The worker's `PaymentReconciliation` runs every 5 minutes over the active stores: pending payments older than 10 minutes are read from the gateway and settled; one the gateway does not know after 30 minutes, or that it holds as pending but whose code never reached the buyer, is failed so the buyer pays again.
 - A customer's export carries their orders' payments; erasure keeps them with the detached orders.
 
+## Notifications
+
+- E-mail (`src/notifications/`) goes through `EmailSender` (`email-sender.ts`, token `EMAIL_SENDER`); `ResendEmailSender` (`adapters/resend.ts`) is the one adapter, on the `resend` SDK. Only the worker sends (`NotificationsModule` is in `WorkerModule`, never in `AppModule`): an e-mail is always an `EventHandler`'s job, which passes its `key` as Resend's idempotency key. Configuration: `RESEND_API_KEY` and `EMAIL_FROM` (section `email`, worker only). Every store sends from `EMAIL_FROM`, with its name as the sender's display name.
+- `OrderNotifications` e-mails the buyer on `order.transitioned`: placed (from the cart), paid, shipped (with the tracking code) and cancelled; `orderEmailKind` says which. The order and the store are read when the job runs. Templates are plain functions (`order-emails.ts`) that answer subject, HTML and text in the store's name, logo and colors (`storeBrand`: its settings, else the tenant's name); everything the store or the buyer typed is escaped.
+- Tests: `testWorker` replaces the sender with one that fails when called; pass a fake with its `override`.
+
 ## Events and jobs
 
 - Modules publish domain events (`DomainEvent`, `src/events/domain-event.ts`) with `publishEvent(tx, event)` in the transaction of the change: a transactional outbox (`domain_events`), so an event exists only if its change committed and is never lost after. Today: `product.created` (`ProductsRepository.create`), `stock.changed` (`moveStock`, with the lines that moved), `order.transitioned` (`transitionOrder`, with `from` and `to`; a payment is the transition to `paid`) and `payment.notified` (the Asaas webhook, with the charge's gateway id). Payloads carry ids and numbers only, never personal data: handlers read what they need.

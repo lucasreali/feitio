@@ -22,6 +22,10 @@ import {
 	type EventHandler,
 } from "../src/events/event-handler.js";
 import { QUEUE_OPTIONS, queueConnection } from "../src/events/queue.js";
+import {
+	EMAIL_SENDER,
+	type EmailSender,
+} from "../src/notifications/email-sender.js";
 import { ASAAS_API, type AsaasApi } from "../src/payments/adapters/asaas.js";
 import { readSessionConfig } from "../src/session/session.config.js";
 import {
@@ -241,6 +245,8 @@ const unreachableAsaas: AsaasApi = {
 	fetch: unreachable("Asaas"),
 };
 
+const unreachableResend: EmailSender = { send: unreachable("Resend") };
+
 /**
  * The whole API, configured like main.ts, ready for app.inject(). `override`
  * replaces more providers, such as a carrier's API.
@@ -319,22 +325,29 @@ export function storeEvents(app: NestFastifyApplication, tenant: TestTenant) {
 /**
  * The worker module with the given handlers, on queue keys of its own so no
  * other worker takes its jobs. Not started: call init() to run the relay and
- * the worker.
+ * the worker. `override` replaces more providers, such as the e-mail sender.
  */
-export function testWorker(handlers: EventHandler[]) {
-	return Test.createTestingModule({ imports: [WorkerModule] })
-		.overrideProvider(DATABASE)
-		.useFactory({ factory: testDatabase })
-		.overrideProvider(QUEUE_OPTIONS)
-		.useValue({
-			...queueConnection(),
-			prefix: `test-${crypto.randomUUID()}`,
-		})
-		.overrideProvider(EVENT_HANDLERS)
-		.useValue(handlers)
-		.overrideProvider(ASAAS_API)
-		.useValue(unreachableAsaas)
-		.compile();
+export function testWorker(
+	handlers: EventHandler[],
+	override: (builder: TestingModuleBuilder) => TestingModuleBuilder = (b) =>
+		b,
+) {
+	return override(
+		Test.createTestingModule({ imports: [WorkerModule] })
+			.overrideProvider(DATABASE)
+			.useFactory({ factory: testDatabase })
+			.overrideProvider(QUEUE_OPTIONS)
+			.useValue({
+				...queueConnection(),
+				prefix: `test-${crypto.randomUUID()}`,
+			})
+			.overrideProvider(EVENT_HANDLERS)
+			.useValue(handlers)
+			.overrideProvider(ASAAS_API)
+			.useValue(unreachableAsaas)
+			.overrideProvider(EMAIL_SENDER)
+			.useValue(unreachableResend),
+	).compile();
 }
 
 /** JSON requests to a store's cart routes, with the cart's token when given. */
