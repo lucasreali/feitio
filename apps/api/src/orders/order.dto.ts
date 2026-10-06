@@ -79,6 +79,12 @@ export class CartDto {
 	 * `shipping_method`. Empty once it can be placed, and for placed orders.
 	 */
 	missing: CheckoutStep[];
+	/**
+	 * The latest payment, with what the buyer pays with (the Pix code, the
+	 * boleto's line, the card's result); null before paying. With `state`, it
+	 * is what the confirmation page shows and polls.
+	 */
+	payment: PaymentDto | null;
 }
 
 export type CheckoutStep =

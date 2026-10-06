@@ -19,6 +19,7 @@ import type {
 } from "../domain/ids.js";
 import type { Money } from "../domain/money.js";
 import { invalid } from "../http/request-body.js";
+import { orderPayments } from "../payments/payments.js";
 import type { Parcel } from "../shipping/shipping-calculator.js";
 import type { ShippingChoice } from "../shipping/shipping-quotes.js";
 import { TenantContext } from "../tenancy/tenant-context.js";
@@ -260,6 +261,7 @@ export async function cartView(
 		)
 		.where(eq(orders.id, id));
 	const lines = await linesOf(tx, id);
+	const [payment = null] = await orderPayments(tx, id);
 	const {
 		state,
 		number,
@@ -290,6 +292,7 @@ export async function cartView(
 		lines,
 		...rest,
 		missing,
+		payment,
 	};
 }
 

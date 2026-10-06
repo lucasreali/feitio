@@ -186,15 +186,16 @@ describe("Placing orders (e2e)", { timeout: 30_000 }, () => {
 				token: string;
 			}>().token;
 
-			expect(
-				(await cart("GET", "/store/cart", { token })).json<Cart>()
-					.missing,
-			).toEqual([
+			const created = (await cart("GET", "/store/cart", { token })).json<
+				Cart & { payment: unknown }
+			>();
+			expect(created.missing).toEqual([
 				"lines",
 				"customer",
 				"shipping_address",
 				"shipping_method",
 			]);
+			expect(created.payment).toBeNull();
 		});
 
 		it.each([

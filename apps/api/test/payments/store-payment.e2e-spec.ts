@@ -138,6 +138,9 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 		expect(
 			(await cart("GET", "/store/cart/payment", { token })).json(),
 		).toEqual(payment);
+		expect(
+			(await cart("GET", "/store/cart", { token })).json().payment,
+		).toEqual(payment);
 		// One payment under way at a time, and the order cannot change meanwhile.
 		expect(
 			(await pay(token, { method: "boleto", taxId: "52998224725" }))
@@ -230,9 +233,10 @@ describe("Store payment (e2e)", { timeout: 30_000 }, () => {
 			status: "confirmed",
 			card: { brand: "VISA", last4: "1111" },
 		});
-		expect((await cart("GET", "/store/cart", { token })).json().state).toBe(
-			"paid",
-		);
+		// The confirmation page: the order and its payment, at once.
+		expect(
+			(await cart("GET", "/store/cart", { token })).json(),
+		).toMatchObject({ state: "paid", payment: response.json() });
 
 		const charge = asaas.requests.filter(
 			(r) => r.method === "POST" && r.path === "/v3/payments",
